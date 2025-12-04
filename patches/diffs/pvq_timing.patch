@@ -1,0 +1,70 @@
+--- a/celt/vq.c	2025-12-02 08:05:08
++++ b/celt/vq.c	2025-10-19 06:29:23
+@@ -30,6 +30,8 @@
+ #include "config.h"
+ #endif
+
++#include "pvq_timing.h"
++
+ #include "mathops.h"
+ #include "cwrs.h"
+ #include "vq.h"
+@@ -105,13 +107,23 @@
+    {
+       if (dir < 0)
+       {
+-         if (stride2)
++         if (stride2) {
++            PVQ_TIMING_START_ROTATION1();
+             exp_rotation1(X+i*len, len, stride2, s, c);
++            PVQ_TIMING_END_ROTATION1(exp_rotation1_time);
++         }
++         PVQ_TIMING_START_ROTATION1();
+          exp_rotation1(X+i*len, len, 1, c, s);
++         PVQ_TIMING_END_ROTATION1(exp_rotation1_time);
+       } else {
++         PVQ_TIMING_START_ROTATION1();
+          exp_rotation1(X+i*len, len, 1, c, -s);
+-         if (stride2)
++         PVQ_TIMING_END_ROTATION1(exp_rotation1_time);
++         if (stride2) {
++            PVQ_TIMING_START_ROTATION1();
+             exp_rotation1(X+i*len, len, stride2, s, -c);
++            PVQ_TIMING_END_ROTATION1(exp_rotation1_time);
++         }
+       }
+    }
+ }
+@@ -367,14 +379,32 @@
+    unsigned collapse_mask;
+    VARDECL(int, iy);
+    SAVE_STACK;
++
++   PVQ_TIMING_START();
+
+    celt_assert2(K>0, "alg_unquant() needs at least one pulse");
+    celt_assert2(N>1, "alg_unquant() needs at least two dimensions");
+    ALLOC(iy, N, int);
++
++   PVQ_TIMING_START_STAGE();
+    Ryy = decode_pulses(iy, N, K, dec);
++   PVQ_TIMING_END(decode_pulses_time);
++
++   PVQ_TIMING_START_STAGE();
+    normalise_residual(iy, X, N, Ryy, gain);
++   PVQ_TIMING_END(normalise_residual_time);
++
++   PVQ_TIMING_START_STAGE();
+    exp_rotation(X, N, -1, B, K, spread);
++   PVQ_TIMING_END(exp_rotation_time);
++
++   PVQ_TIMING_START_STAGE();
+    collapse_mask = extract_collapse_mask(iy, N, B);
++   PVQ_TIMING_END(extract_collapse_mask_time);
++
++   PVQ_TIMING_END_TOTAL(total_pvq_time);
++   PVQ_TIMING_PRINT(200);
++
+    RESTORE_STACK;
+    return collapse_mask;
+ }

@@ -1,0 +1,10 @@
+--- a/silk/SigProc_FIX.h	2025-12-02 21:00:02
++++ b/silk/SigProc_FIX.h	2025-07-31 19:51:22
+@@ -639,7 +639,6 @@
+ #include "xtensa/SigProc_FIX_lx7.h"
+ #endif
+
+-
+ #ifdef  __cplusplus
+ }
+ #endif

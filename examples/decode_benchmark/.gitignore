@@ -1,0 +1,12 @@
+# ESP-IDF build artifacts
+build/
+sdkconfig
+sdkconfig.old
+*.pyc
+__pycache__/
+
+# PlatformIO build artifacts
+.pio/
+.vscode/
+.clang_complete
+.gcc-flags.json

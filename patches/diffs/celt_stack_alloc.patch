@@ -1,0 +1,107 @@
+--- a/celt/stack_alloc.h	2025-12-02 21:00:02
++++ b/celt/stack_alloc.h	2025-12-02 08:09:40
+@@ -35,8 +35,8 @@
+ #include "opus_types.h"
+ #include "opus_defines.h"
+
+-#if (!defined (VAR_ARRAYS) && !defined (USE_ALLOCA) && !defined (NONTHREADSAFE_PSEUDOSTACK))
+-#error "Opus requires one of VAR_ARRAYS, USE_ALLOCA, or NONTHREADSAFE_PSEUDOSTACK be defined to select the temporary allocation mode."
++#if (!defined (VAR_ARRAYS) && !defined (USE_ALLOCA) && !defined (NONTHREADSAFE_PSEUDOSTACK) && !defined (THREADSAFE_PSEUDOSTACK))
++#error "Opus requires one of VAR_ARRAYS, USE_ALLOCA, NONTHREADSAFE_PSEUDOSTACK, or THREADSAFE_PSEUDOSTACK be defined to select the temporary allocation mode."
+ #endif
+
+ #ifdef USE_ALLOCA
+@@ -113,8 +113,10 @@
+ #define ALLOC_STACK
+ #define ALLOC_NONE 0
+
+-#else
++#elif defined(NONTHREADSAFE_PSEUDOSTACK)
+
++/* Original Opus non-threadsafe pseudostack implementation */
++/* WARNING: This uses global variables and is NOT thread-safe! */
+ #ifdef CELT_C
+ char *scratch_ptr=0;
+ char *global_stack=0;
+@@ -158,6 +160,74 @@
+ #define SAVE_STACK char *_saved_stack = global_stack;
+ #define ALLOC_NONE 0
+
++#elif defined(THREADSAFE_PSEUDOSTACK)
++
++/* Thread-safe pseudostack using direct _Thread_local variables
++ *
++ * DESIGN RATIONALE:
++ * This implementation uses direct C11 _Thread_local variables for zero-overhead access
++ * to the pseudostack pointers, combined with pthread TLS for automatic cleanup.
++ *
++ * 1. Direct _Thread_local variables (scratch_ptr, global_stack):
++ *    - Zero overhead access - just a memory read, no function call or NULL check
++ *    - Each thread gets its own copy automatically
++ *    - Lazy allocation in ALLOC_STACK on first use (same pattern as non-threadsafe)
++ *    - Defined in thread_local_stack.c, declared extern here for single definition
++ *
++ * 2. pthread TLS (via register_pseudostack_for_cleanup):
++ *    - Only used for cleanup registration, not for hot-path access
++ *    - Destructor callback frees memory when thread exits
++ *    - Prevents memory leaks when FreeRTOS tasks are deleted
++ *
++ * PERFORMANCE:
++ * - Direct variable access: ~0 overhead (same as non-threadsafe global variables)
++ * - No function calls, no NULL checks on the hot path (PUSH, SAVE_STACK, RESTORE_STACK)
++ * - Initialization check only in ALLOC_STACK (entry points), same as non-threadsafe
++ */
++#include "arch.h"  /* For GLOBAL_STACK_SIZE */
++#include "thread_local_stack.h"
++#include "custom_support.h"
++#include "os_support.h"  /* For opus_alloc_scratch() */
++
++/* Direct thread-local pseudostack pointers - defined in thread_local_stack.c */
++extern _Thread_local char *scratch_ptr;
++extern _Thread_local char *global_stack;
++
++/* Allocate and register pseudostack - defined in thread_local_stack.c */
++char* _opus_alloc_and_register_pseudostack(void);
++
++#ifdef ENABLE_VALGRIND
++
++#include <valgrind/memcheck.h>
++
++static _Thread_local char *global_stack_top = NULL;
++
++#define ALIGN(stack, size) ((stack) += ((size) - (long)(stack)) & ((size) - 1))
++#define PUSH(stack, size, type) (VALGRIND_MAKE_MEM_NOACCESS(stack, global_stack_top-stack),ALIGN((stack),sizeof(type)/sizeof(char)),VALGRIND_MAKE_MEM_UNDEFINED(stack, ((size)*sizeof(type)/sizeof(char))),(stack)+=(2*(size)*sizeof(type)/sizeof(char)),(type*)((stack)-(2*(size)*sizeof(type)/sizeof(char))))
++#define RESTORE_STACK ((global_stack = _saved_stack),VALGRIND_MAKE_MEM_NOACCESS(global_stack, global_stack_top-global_stack))
++#define ALLOC_STACK char *_saved_stack; ((global_stack = (global_stack==0) ? ((global_stack_top=_opus_alloc_and_register_pseudostack()+(GLOBAL_STACK_SIZE))-(GLOBAL_STACK_SIZE)) : global_stack),VALGRIND_MAKE_MEM_NOACCESS(global_stack, global_stack_top-global_stack)); _saved_stack = global_stack;
++
++#else
++
++#include "arch.h"
++#define ALIGN(stack, size) ((stack) += ((size) - (long)(stack)) & ((size) - 1))
++#define PUSH(stack, size, type) (ALIGN((stack),sizeof(type)/(sizeof(char))),(void)(((int)((size)*(sizeof(type)/(sizeof(char)))) <= (scratch_ptr)+GLOBAL_STACK_SIZE-(stack))?0:CELT_FATAL("pseudostack overflow")),(stack)+=(size)*(sizeof(type)/(sizeof(char))),(type*)((stack)-(size)*(sizeof(type)/(sizeof(char)))))
++#if 0 /* Set this to 1 to instrument pseudostack usage */
++#define RESTORE_STACK (printf("%ld %s:%d\n", global_stack-scratch_ptr, __FILE__, __LINE__),global_stack = _saved_stack)
++#else
++#define RESTORE_STACK (global_stack = _saved_stack)
++#endif
++/* Lazy allocation: check global_stack==0, allocate if needed, same pattern as non-threadsafe */
++#define ALLOC_STACK char *_saved_stack; (global_stack = (global_stack==0) ? (_opus_alloc_and_register_pseudostack()) : global_stack); _saved_stack = global_stack;
++
++#endif /* ENABLE_VALGRIND */
++
++#include "os_support.h"
++#define VARDECL(type, var) type *var
++#define ALLOC(var, size, type) var = PUSH(global_stack, size, type)
++#define SAVE_STACK char *_saved_stack = global_stack;
++#define ALLOC_NONE 0
++
+ #endif /* VAR_ARRAYS */
+
+
+@@ -182,4 +252,4 @@
+ #endif
+
+
+-#endif /* STACK_ALLOC_H */
++#endif /* STACK_ALLOC_H */
+\ No newline at end of file

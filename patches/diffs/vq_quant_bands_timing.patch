@@ -1,0 +1,74 @@
+--- a/celt/vq.c	2025-12-02 08:05:08
++++ b/celt/vq.c	2025-10-20 13:44:15
+@@ -35,6 +35,8 @@
+ #include "vq.h"
+ #include "arch.h"
+ #include "os_support.h"
++
++#include "quant_bands_timing.h"
+ #include "bands.h"
+ #include "rate.h"
+ #include "pitch.h"
+@@ -82,14 +84,20 @@
+
+    if (2*K>=len || spread==SPREAD_NONE)
+       return;
++
++   QUANT_BANDS_TIMING_EXP_ROTATION_SETUP_START();
+    factor = SPREAD_FACTOR[spread-1];
+
+    gain = celt_div((opus_val32)MULT16_16(Q15_ONE,len),(opus_val32)(len+factor*K));
+    theta = HALF16(MULT16_16_Q15(gain,gain));
++   QUANT_BANDS_TIMING_EXP_ROTATION_SETUP_END();
+
++   QUANT_BANDS_TIMING_EXP_ROTATION_COS_START();
+    c = celt_cos_norm(EXTEND32(theta));
+    s = celt_cos_norm(EXTEND32(SUB16(Q15ONE,theta))); /*  sin(theta) */
++   QUANT_BANDS_TIMING_EXP_ROTATION_COS_END();
+
++   QUANT_BANDS_TIMING_EXP_ROTATION_ROUNDING_START();
+    if (len>=8*stride)
+    {
+       stride2 = 1;
+@@ -98,9 +106,13 @@
+       while ((stride2*stride2+stride2)*stride + (stride>>2) < len)
+          stride2++;
+    }
++   QUANT_BANDS_TIMING_EXP_ROTATION_ROUNDING_END();
++
+    /*NOTE: As a minor optimization, we could be passing around log2(B), not B, for both this and for
+       extract_collapse_mask().*/
+    len = celt_udiv(len, stride);
++
++   QUANT_BANDS_TIMING_EXP_ROTATION_LOOP_START();
+    for (i=0;i<stride;i++)
+    {
+       if (dir < 0)
+@@ -114,6 +126,7 @@
+             exp_rotation1(X+i*len, len, stride2, s, -c);
+       }
+    }
++   QUANT_BANDS_TIMING_EXP_ROTATION_LOOP_END();
+ }
+
+ /** Takes the pitch vector and the decoded residual vector, computes the gain
+@@ -371,9 +384,19 @@
+    celt_assert2(K>0, "alg_unquant() needs at least one pulse");
+    celt_assert2(N>1, "alg_unquant() needs at least two dimensions");
+    ALLOC(iy, N, int);
++
++   QUANT_BANDS_TIMING_DECODE_PULSES_START();
+    Ryy = decode_pulses(iy, N, K, dec);
++   QUANT_BANDS_TIMING_DECODE_PULSES_END();
++
++   QUANT_BANDS_TIMING_NORMALISE_START();
+    normalise_residual(iy, X, N, Ryy, gain);
++   QUANT_BANDS_TIMING_NORMALISE_END();
++
++   QUANT_BANDS_TIMING_EXP_ROTATION_START();
+    exp_rotation(X, N, -1, B, K, spread);
++   QUANT_BANDS_TIMING_EXP_ROTATION_END();
++
+    collapse_mask = extract_collapse_mask(iy, N, B);
+    RESTORE_STACK;
+    return collapse_mask;

@@ -1,0 +1,308 @@
+menu "Opus Audio Codec"
+
+    config OPUS_COMPONENT
+        bool
+        default y
+
+    choice OPUS_ALLOCATION_MODE
+        prompt "Memory allocation mode"
+        default OPUS_THREADSAFE_PSEUDOSTACK
+        help
+            Select the temporary memory allocation strategy for Opus:
+
+            - Thread-safe pseudostack (recommended): Uses pthread thread-local
+              storage to provide a separate 120KB pseudostack per thread. Safe
+              for concurrent use from multiple FreeRTOS tasks. Automatically
+              uses PSRAM when available.
+
+            - Non-threadsafe pseudostack: Original Opus implementation using
+              global variables. NOT safe for concurrent use from multiple tasks.
+              Only use if you guarantee single-threaded Opus access.
+
+            - alloca: Uses stack-based allocation. Requires larger task stack
+              sizes (add ~120KB per task using Opus).
+
+        config OPUS_THREADSAFE_PSEUDOSTACK
+            bool "Thread-safe pseudostack (pthread TLS)"
+            select FREERTOS_TLSP_DELETION_CALLBACKS
+            help
+                Uses pthread thread-local storage to provide thread-safe
+                pseudostack allocation. Each thread gets its own 120KB
+                pseudostack (allocated from PSRAM when available). Safe for
+                concurrent Opus use from multiple FreeRTOS tasks. Automatic
+                cleanup when tasks exit.
+
+        config OPUS_NONTHREADSAFE_PSEUDOSTACK
+            bool "Non-threadsafe pseudostack (original)"
+            help
+                Original Opus pseudostack implementation using global variables.
+                NOT thread-safe - do not use Opus concurrently from multiple
+                tasks with this mode. Single 120KB pseudostack shared globally.
+
+        config OPUS_USE_ALLOCA
+            bool "Stack allocation (alloca)"
+            help
+                Uses alloca() for temporary allocations on the task stack.
+                Requires larger task stack sizes (~120KB additional per task).
+                Thread-safe but memory-intensive.
+
+    endchoice
+
+    config OPUS_PSEUDOSTACK_SIZE
+        int "Pseudostack size (bytes)"
+        default 120000
+        range 60000 240000
+        depends on OPUS_THREADSAFE_PSEUDOSTACK || OPUS_NONTHREADSAFE_PSEUDOSTACK
+        help
+            Configure the size of the pseudostack buffer used for temporary
+            memory allocations during Opus encoding/decoding.
+
+            Default: 120000 bytes (120KB)
+            Range: 60000 to 240000 bytes (60KB to 240KB)
+
+            For THREADSAFE_PSEUDOSTACK mode, each thread gets its own buffer
+            of this size (allocated from PSRAM when available).
+
+            For NONTHREADSAFE_PSEUDOSTACK mode, there is one global buffer
+            of this size.
+
+            When to increase:
+            - If you encounter "pseudostack overflow" errors, increase this value
+            - Complex encoding scenarios may require more memory
+            - Typical range: 100KB-150KB
+
+            When to decrease:
+            - To reduce memory usage if PSRAM is limited
+            - Only decrease if you're sure your use case doesn't overflow
+            - Monitor for "pseudostack overflow" errors after decreasing
+
+            Note: This option only applies to pseudostack allocation modes.
+            The USE_ALLOCA mode allocates memory on the task stack instead.
+
+    choice OPUS_STATE_MEMORY_PREFERENCE
+        prompt "Memory preference for Opus state and tables"
+        default OPUS_STATE_PREFER_PSRAM
+        help
+            Choose memory allocation preference for Opus encoder/decoder state,
+            CELT mode tables, FFT twiddle factors, and other persistent buffers.
+
+            These structures are allocated once and accessed moderately during
+            encoding/decoding. Total size is typically 30-50KB per instance plus
+            shared tables.
+
+            - Prefer PSRAM: Saves internal RAM, slight performance penalty
+            - Prefer internal: Better performance, uses precious internal RAM
+            - PSRAM only: Fails if PSRAM unavailable
+            - Internal only: Never uses PSRAM
+
+        config OPUS_STATE_PREFER_PSRAM
+            bool "Prefer PSRAM, fall back to internal RAM"
+            help
+                Try to allocate from PSRAM first. If PSRAM allocation fails or
+                is unavailable, fall back to internal RAM.
+
+                Recommended for most use cases to conserve internal RAM.
+
+        config OPUS_STATE_PREFER_INTERNAL
+            bool "Prefer internal RAM, fall back to PSRAM"
+            help
+                Try to allocate from internal RAM first. If internal RAM
+                allocation fails, fall back to PSRAM.
+
+                May provide slightly better performance at the cost of using
+                more internal RAM.
+
+        config OPUS_STATE_PSRAM_ONLY
+            bool "PSRAM only (fail if unavailable)"
+            help
+                Only allocate from PSRAM. If PSRAM is not available or allocation
+                fails, opus_encoder_create() / opus_decoder_create() will fail.
+
+        config OPUS_STATE_INTERNAL_ONLY
+            bool "Internal RAM only"
+            help
+                Never use PSRAM for state/tables allocation. Only use internal RAM.
+                Uses approximately 30-50KB of internal RAM per encoder/decoder
+                instance plus shared tables.
+
+    endchoice
+
+    choice OPUS_PSEUDOSTACK_MEMORY_PREFERENCE
+        prompt "Memory preference for pseudostack (working memory)"
+        default OPUS_PSEUDOSTACK_PREFER_PSRAM
+        depends on OPUS_THREADSAFE_PSEUDOSTACK || OPUS_NONTHREADSAFE_PSEUDOSTACK
+        help
+            Choose memory allocation preference for the pseudostack working memory.
+
+            The pseudostack is heavily accessed during encode/decode operations for
+            temporary allocations. It is accessed hundreds of times per frame.
+
+            Memory tradeoff:
+            - Prefer internal RAM: Uses 120KB+ internal RAM
+            - Prefer PSRAM: Conserves internal RAM
+
+            For THREADSAFE mode: Each thread gets its own buffer
+            For NONTHREADSAFE mode: One global buffer is shared
+
+        config OPUS_PSEUDOSTACK_PREFER_PSRAM
+            bool "Prefer PSRAM, fall back to internal RAM"
+            help
+                Try to allocate pseudostack from PSRAM first. If PSRAM allocation
+                fails or is unavailable, fall back to internal RAM.
+
+                Recommended for most use cases to conserve internal RAM.
+
+        config OPUS_PSEUDOSTACK_PREFER_INTERNAL
+            bool "Prefer internal RAM, fall back to PSRAM"
+            help
+                Try to allocate pseudostack from internal RAM first. If internal
+                RAM allocation fails, fall back to PSRAM.
+
+                Uses significant internal RAM (120KB+ per thread for THREADSAFE
+                mode, 120KB total for NONTHREADSAFE mode).
+
+        config OPUS_PSEUDOSTACK_PSRAM_ONLY
+            bool "PSRAM only (fail if unavailable)"
+            help
+                Only allocate pseudostack from PSRAM. If PSRAM is not available
+                or allocation fails, Opus initialization will fail.
+
+        config OPUS_PSEUDOSTACK_INTERNAL_ONLY
+            bool "Internal RAM only"
+            help
+                Never use PSRAM for pseudostack. Only use internal RAM.
+                Uses 120KB+ of internal RAM per thread (THREADSAFE mode) or
+                120KB total (NONTHREADSAFE mode).
+
+    endchoice
+
+    choice OPUS_OGG_DECODER_MEMORY_PREFERENCE
+        prompt "Memory preference for Ogg Opus decoder buffers"
+        default OPUS_OGG_DECODER_PREFER_PSRAM
+        help
+            Choose memory allocation preference for the OggOpusDecoder internal
+            buffers. This affects the Ogg demuxer buffer which can grow up to 65KB.
+
+            - Prefer PSRAM: Conserves internal RAM, uses PSRAM when available
+            - Prefer internal: Better performance, uses internal RAM first
+            - PSRAM only: Fails if PSRAM unavailable
+            - Internal only: Never uses PSRAM
+
+        config OPUS_OGG_DECODER_PREFER_PSRAM
+            bool "Prefer PSRAM, fall back to internal RAM"
+            help
+                Try to allocate Ogg decoder buffers from PSRAM first. If PSRAM
+                allocation fails or is unavailable, fall back to internal RAM.
+
+                Recommended for most use cases to conserve internal RAM.
+
+        config OPUS_OGG_DECODER_PREFER_INTERNAL
+            bool "Prefer internal RAM, fall back to PSRAM"
+            help
+                Try to allocate Ogg decoder buffers from internal RAM first.
+                If internal RAM allocation fails, fall back to PSRAM.
+
+                May provide slightly better performance for streaming decode.
+
+        config OPUS_OGG_DECODER_PSRAM_ONLY
+            bool "PSRAM only (fail if unavailable)"
+            help
+                Only allocate Ogg decoder buffers from PSRAM. If PSRAM is not
+                available or allocation fails, the decoder will fail to initialize.
+
+        config OPUS_OGG_DECODER_INTERNAL_ONLY
+            bool "Internal RAM only"
+            help
+                Never use PSRAM for Ogg decoder buffers. Only use internal RAM.
+                The Ogg demuxer may use up to 65KB for packet buffering.
+
+    endchoice
+
+    config OPUS_FLOATING_POINT
+        bool "Enable floating-point implementation"
+        default y if IDF_TARGET_ESP32 || IDF_TARGET_ESP32S3
+        default n
+        help
+            Enable floating-point implementation instead of fixed-point.
+
+            Enabled by default only on ESP32 and ESP32-S3 which have hardware FPU.
+            Floating-point is faster on these platforms due to hardware FPU support.
+
+            Can be enabled on other platforms if they have FPU support. The user
+            is responsible to set this appropriately for their specific target.
+
+    config OPUS_ENABLE_XTENSA_OPTIMIZATIONS
+        bool "Enable Xtensa assembly optimizations"
+        default y if IDF_TARGET_ESP32 || IDF_TARGET_ESP32S3
+        default n
+        help
+            Enable Xtensa LX6/LX7 assembly optimizations for CELT and SILK.
+
+            These optimizations use Xtensa-specific instructions (mulsh, clamps,
+            MAC unit) available on ESP32 and ESP32-S3. Enabled by default on
+            these platforms.
+
+            Disable this to use the generic C implementation, which may be useful
+            for debugging or benchmarking comparisons.
+
+    config OPUS_ENABLE_CELT_TIMING
+        bool "Enable CELT decoder timing measurements"
+        default n
+        help
+            Enable timing instrumentation for the CELT decoder to measure
+            performance of each decoding stage. Timing statistics are printed
+            every 200 decoded frames showing microseconds spent in:
+            - Entropy decoding (bitstream parsing)
+            - PVQ decoding (pyramid vector quantization)
+            - Energy finalization
+            - Synthesis (IMDCT)
+            - Post-filtering
+            - Deemphasis
+
+            This is useful for profiling and optimization on ESP32.
+            The overhead is minimal (< 1% performance impact).
+
+    config OPUS_ENABLE_PVQ_TIMING
+        bool "Enable detailed PVQ decoding timing measurements"
+        default n
+        help
+            Enable fine-grained timing measurements of PVQ (Pyramid Vector
+            Quantization) decoding stages. Provides detailed breakdown of:
+            - Pulse decoding (decode_pulses)
+            - Residual normalization (normalise_residual)
+            - Rotation (exp_rotation and exp_rotation1)
+            - Collapse mask extraction
+
+            Timing statistics are printed every 200 PVQ decode calls.
+            This helps identify bottlenecks within the PVQ algorithm itself.
+
+            Note: This is separate from OPUS_ENABLE_CELT_TIMING which measures
+            higher-level decoder stages. Enable both for complete profiling.
+
+            Recommended for optimization work on PVQ performance.
+            Overhead is minimal (< 1% performance impact).
+
+    config OPUS_ENABLE_QUANT_BANDS_TIMING
+        bool "Enable quant_all_bands timing measurements"
+        default n
+        help
+            Enable detailed timing measurements of the quant_all_bands function
+            which performs band quantization (encoding) or unquantization (decoding).
+            This provides a complete breakdown of where time is spent including:
+            - quant_band/quant_band_stereo calls
+            - alg_unquant (PVQ decoding)
+              - decode_pulses (pulse decoding)
+              - normalise_residual (normalization)
+              - exp_rotation (rotation transforms)
+            - Stereo processing (split/merge, itheta)
+            - Other overhead
+
+            Reports both per-frame totals and per-band averages.
+            Timing statistics are printed every 100 decoded frames.
+
+            This is the most comprehensive profiling option and helps identify
+            bottlenecks across the entire band quantization process.
+
+            Overhead is minimal (< 1% performance impact).
+
+endmenu

@@ -1,0 +1,135 @@
+# Build artifacts
+build/
+*.o
+*.a
+*.so
+*.la
+*.lo
+.libs/
+.deps/
+
+# ESP-IDF specific
+sdkconfig
+sdkconfig.old
+*.bin
+*.elf
+*.map
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+compile_commands.json
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cproject
+.project
+.settings/
+
+# OS specific
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.Python
+venv/
+env/
+
+# Logs
+*.log
+log/
+
+# Test outputs
+*.wav
+*.opus
+*.ogg
+*.pcm
+test_output/
+
+# Debug symbols
+*.dSYM/
+*.pdb
+
+# Autotools (from upstream experiments)
+Makefile
+Makefile.in
+configure
+config.h
+config.log
+config.status
+config.sub
+config.guess
+configure~
+autom4te.cache/
+aclocal.m4
+compile
+depcomp
+install-sh
+ltmain.sh
+missing
+stamp-h1
+libtool
+m4/
+INSTALL
+package_version
+
+# Documentation
+doc/html/
+doc/latex/
+*.pdf
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+.cache/
+
+# Component registry
+dependencies.lock
+managed_components/
+
+# Example build files
+examples/*/build/
+examples/*/sdkconfig
+examples/*/sdkconfig.old
+
+# Benchmark/test data
+*.tar.gz
+*.tar
+*.zip
+test_data/
+benchmark_results/
+
+# Core dumps
+core
+core.*
+vgcore.*
+
+# Coverage
+*.gcda
+*.gcno
+*.gcov
+coverage/
+htmlcov/
+
+# Opus specific test files
+opus_demo
+opus_compare
+repacketizer_demo
+test_opus_*
+trivial_example
+
+# Opus staging directory (created during build, normally in build folder)
+# May appear in source tree with some ESP-IDF/PlatformIO configurations
+opus-staged/
+**/opus-staged/

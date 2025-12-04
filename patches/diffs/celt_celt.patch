@@ -1,0 +1,13 @@
+--- a/celt/celt.c	2025-12-02 21:00:02
++++ b/celt/celt.c	2025-12-02 08:39:48
+@@ -91,8 +91,8 @@
+
+
+ #if !defined(OVERRIDE_COMB_FILTER_CONST) || defined(NON_STATIC_COMB_FILTER_CONST_C)
+-/* This version should be faster on ARM */
+-#ifdef OPUS_ARM_ASM
++/* This version should be faster on ARM and Xtensa LX7*/
++#if defined(OPUS_ARM_ASM) || defined(OPUS_XTENSA_LX7)
+ #ifndef NON_STATIC_COMB_FILTER_CONST_C
+ static
+ #endif

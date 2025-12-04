@@ -1,0 +1,6 @@
+[submodule "opus"]
+	path = lib/opus
+	url = https://github.com/xiph/opus.git
+[submodule "lib/micro-ogg-demuxer"]
+	path = lib/micro-ogg-demuxer
+	url = https://github.com/esphome-libs/micro-ogg-demuxer.git

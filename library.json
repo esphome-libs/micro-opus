@@ -1,0 +1,12 @@
+{
+    "name": "micro-opus",
+    "version": "0.1.0",
+    "description": "Wrapper for the Opus audio codec with PSRAM support and Xtensa DSP optimizations",
+    "keywords": ["opus", "audio", "codec"],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/esphome-libs/micro-opus"
+    },
+    "frameworks": "espidf",
+    "platforms": "espressif32"
+}

@@ -1,0 +1,12 @@
+--- a/celt/pitch.h	2025-12-02 21:00:02
++++ b/celt/pitch.h	2025-12-02 07:36:29
+@@ -50,6 +50,10 @@
+ # include "arm/pitch_arm.h"
+ #endif
+
++#if defined (OPUS_XTENSA_LX7)
++#include "xtensa/pitch_lx7.h"
++#endif
++
+ void pitch_downsample(celt_sig * OPUS_RESTRICT x[], opus_val16 * OPUS_RESTRICT x_lp,
+       int len, int C, int arch);

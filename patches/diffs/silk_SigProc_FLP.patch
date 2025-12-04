@@ -1,0 +1,13 @@
+--- a/silk/float/SigProc_FLP.h	2025-12-02 21:00:02
++++ b/silk/float/SigProc_FLP.h	2025-12-04 10:00:00
+@@ -198,6 +198,10 @@
+     return ( silk_float )( 3.32192809488736 * log10( x ) );
+ }
+
++#ifdef OPUS_XTENSA_LX7
++#include "xtensa/SigProc_FLP_lx7.h"
++#endif
++
+ #ifdef  __cplusplus
+ }
+ #endif
