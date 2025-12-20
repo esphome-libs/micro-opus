@@ -1,6 +1,6 @@
---- a/silk/float/SigProc_FLP.h	2025-12-02 21:00:02
-+++ b/silk/float/SigProc_FLP.h	2025-12-04 10:00:00
-@@ -198,6 +198,10 @@
+--- a/silk/float/SigProc_FLP.h
++++ b/silk/float/SigProc_FLP.h
+@@ -196,6 +196,10 @@
      return ( silk_float )( 3.32192809488736 * log10( x ) );
  }
 

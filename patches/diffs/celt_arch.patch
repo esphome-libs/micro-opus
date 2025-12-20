@@ -1,5 +1,5 @@
---- a/celt/arch.h	2025-12-02 21:00:02
-+++ b/celt/arch.h	2025-10-18 17:41:32
+--- a/celt/arch.h
++++ b/celt/arch.h
 @@ -249,6 +249,8 @@
  #include "fixed_c5x.h"
  #elif defined (TI_C6X_ASM)

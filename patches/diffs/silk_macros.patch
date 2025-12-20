@@ -1,7 +1,0 @@
---- a/silk/macros.h	2025-12-02 21:00:02
-+++ b/silk/macros.h	2025-07-30 08:42:00
-@@ -152,3 +152,4 @@
- #endif
-
- #endif /* SILK_MACROS_H */
-+

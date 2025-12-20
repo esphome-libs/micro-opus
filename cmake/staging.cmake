@@ -31,26 +31,24 @@ set(OPUS_CORE_PATCHES
 )
 
 # ESP32-S3 Xtensa LX7 patches (applied only for esp32s3 target)
+# Note: silk_macros.patch and silk_SigProc_FIX.patch removed - now in upstream v1.6
 set(OPUS_XTENSA_PATCHES
     celt_arch.patch
     celt_celt.patch
     celt_mathops.patch
     celt_pitch.patch
-    silk_macros.patch
-    silk_SigProc_FIX.patch
     silk_SigProc_FLP.patch
 )
 
 # Additional files to copy (not patches, just new files)
+# Note: silk/xtensa/macros_lx7.h and SigProc_FIX_lx7.h removed - now in upstream v1.6
 set(OPUS_XTENSA_ADDITIONS
     # CELT Xtensa headers
     celt/xtensa/fixed_lx7.h
     celt/xtensa/mathops_lx7.h
     celt/xtensa/mathops_lx7.c
     celt/xtensa/pitch_lx7.h
-    # SILK Xtensa headers
-    silk/xtensa/macros_lx7.h
-    silk/xtensa/SigProc_FIX_lx7.h
+    # SILK Xtensa headers (floating-point only - fixed-point now in upstream)
     silk/xtensa/SigProc_FLP_lx7.h
 )
 

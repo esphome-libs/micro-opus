@@ -1,6 +1,6 @@
---- a/celt/mathops.h	2025-12-02 21:00:02
-+++ b/celt/mathops.h	2025-10-25 08:55:05
-@@ -41,6 +41,8 @@
+--- a/celt/mathops.h
++++ b/celt/mathops.h
+@@ -43,6 +43,8 @@
 
  #if defined(OPUS_ARM_MAY_HAVE_NEON_INTR)
  #include "arm/mathops_arm.h"
@@ -8,16 +8,18 @@
 +#include "xtensa/mathops_lx7.h"
  #endif
 
- #define PI 3.141592653f
-@@ -138,10 +140,14 @@
+ #define PI 3.1415926535897931
+@@ -222,11 +224,15 @@
 
  #ifndef FIXED_POINT
 
 +#ifndef OVERRIDE_CELT_SQRT
  #define celt_sqrt(x) ((float)sqrt(x))
 +#endif
+ #define celt_sqrt32(x) ((float)sqrt(x))
  #define celt_rsqrt(x) (1.f/celt_sqrt(x))
  #define celt_rsqrt_norm(x) (celt_rsqrt(x))
+ #define celt_rsqrt_norm32(x) (celt_rsqrt(x))
 +#ifndef OVERRIDE_CELT_COS_NORM
  #define celt_cos_norm(x) ((float)cos((.5f*PI)*(x)))
 +#endif
