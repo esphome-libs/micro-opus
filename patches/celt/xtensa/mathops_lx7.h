@@ -32,8 +32,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef DISABLE_FLOAT_API
 
-#define PI 3.141592653f
-
 #define OVERRIDE_CELT_SQRT (1)
 #define celt_sqrt(x) (sqrtf(x))
 
