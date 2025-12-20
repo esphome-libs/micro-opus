@@ -52,21 +52,6 @@ The implementation uses direct `_Thread_local` variable access for the hot path 
 
 Follows the upstream convention to use the `OPUS_XTENSA_LX7` define, but all the assembly operations used are available on an ESP32 with an LX6 core.
 
-#### silk/ folder
-
-Contains custom SILK codec headers with Xtensa ESP32 optimizations:
-
-##### silk/macros.h and silk/SigProc_FIX.h
-
-Custom versions that conditionally include Xtensa optimizations.
-
-##### silk/xtensa/ folder
-
-Xtensa LX7 assembly optimizations cherry-picked from upstream Opus PR #400:
-
-- `macros_lx7.h` - Optimized SILK macros using MULSH instruction
-- `SigProc_FIX_lx7.h` - Optimized SAT16 saturation using CLAMPS instruction
-
 #### celt/ folder
 
 Contains custom CELT codec headers with Xtensa optimizations:
@@ -108,5 +93,5 @@ For non-ESP-IDF builds (Linux, macOS, Windows):
 ## Performance
 
 - **THREADSAFE_PSEUDOSTACK**: Nearly matches NONTHREADSAFE mode performance (<0.1% difference)
-- **ESP32 optimizations**: ~17-25% improvement for SILK/CELT operations
+- **ESP32 optimizations**: ~17-25% improvement for CELT operations
 - **PSRAM allocation**: Conserves internal RAM with minimal performance impact on an ESP32-S3 with octal PSRAM at 80 MHz.
