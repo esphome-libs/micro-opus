@@ -1,5 +1,5 @@
---- a/celt/pitch.h	2025-12-02 21:00:02
-+++ b/celt/pitch.h	2025-12-02 07:36:29
+--- a/celt/pitch.h
++++ b/celt/pitch.h
 @@ -50,6 +50,10 @@
  # include "arm/pitch_arm.h"
  #endif
@@ -9,4 +9,4 @@
 +#endif
 +
  void pitch_downsample(celt_sig * OPUS_RESTRICT x[], opus_val16 * OPUS_RESTRICT x_lp,
-       int len, int C, int arch);
+       int len, int C, int factor, int arch);

@@ -1,5 +1,5 @@
---- a/celt/stack_alloc.h	2025-12-02 21:00:02
-+++ b/celt/stack_alloc.h	2025-12-02 08:09:40
+--- a/celt/stack_alloc.h
++++ b/celt/stack_alloc.h
 @@ -35,8 +35,8 @@
  #include "opus_types.h"
  #include "opus_defines.h"
@@ -23,7 +23,7 @@
  #ifdef CELT_C
  char *scratch_ptr=0;
  char *global_stack=0;
-@@ -158,6 +160,74 @@
+@@ -163,6 +165,74 @@
  #define SAVE_STACK char *_saved_stack = global_stack;
  #define ALLOC_NONE 0
 
@@ -96,12 +96,3 @@
 +#define ALLOC_NONE 0
 +
  #endif /* VAR_ARRAYS */
-
-
-@@ -182,4 +252,4 @@
- #endif
-
-
--#endif /* STACK_ALLOC_H */
-+#endif /* STACK_ALLOC_H */
-\ No newline at end of file

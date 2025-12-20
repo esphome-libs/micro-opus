@@ -37,6 +37,7 @@ function(opus_get_sources OPUS_DIR)
         ${OPUS_DIR}/src/opus_decoder.c
         ${OPUS_DIR}/src/opus_multistream_decoder.c
         ${OPUS_DIR}/src/opus_projection_decoder.c
+        ${OPUS_DIR}/src/extensions.c
         PARENT_SCOPE
     )
 
