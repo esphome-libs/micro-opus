@@ -1,6 +1,6 @@
---- a/celt/mathops.h
-+++ b/celt/mathops.h
-@@ -43,6 +43,8 @@
+--- a/celt/mathops.h	2025-12-20 10:47:54
++++ b/celt/mathops.h	2025-12-20 10:49:04
+@@ -42,6 +42,8 @@
 
  #if defined(OPUS_ARM_MAY_HAVE_NEON_INTR)
  #include "arm/mathops_arm.h"
@@ -9,7 +9,7 @@
  #endif
 
  #define PI 3.1415926535897931
-@@ -222,11 +224,15 @@
+@@ -222,12 +224,16 @@
 
  #ifndef FIXED_POINT
 
@@ -26,3 +26,72 @@
  #define celt_rcp(x) (1.f/(x))
  #define celt_div(a,b) ((a)/(b))
  #define frac_div32(a,b) ((float)(a)/(b))
+@@ -269,6 +275,7 @@
+    5.849624872207641601562500e-01f, 7.004396915435791015625000e-01f,
+    8.073549270629882812500000e-01f, 9.068905711174011230468750e-01f};
+
++#ifdef ENABLE_QEXT
+ static OPUS_INLINE float celt_log2(float x)
+ {
+    opus_int32 integer;
+@@ -304,7 +311,27 @@
+                + in.f * (LOG2_COEFF_A4))));
+    return integer + in.f + log2_y_norm_coeff[range_idx];
+ }
++
++#else /* !ENABLE_QEXT - use simpler approximation */
++
++/* Note: This assumes radix-2 floating point with the exponent at bits 23..30 and an offset of 127
++         denorm, +/- inf and NaN are *not* handled */
+
++/** Base-2 log approximation (log2(x)). */
++static OPUS_INLINE float celt_log2(float x)
++{
++   int integer;
++   float frac;
++   union { float f; opus_uint32 i; } in;
++   in.f = x;
++   integer = (in.i>>23)-127;
++   in.i -= (opus_uint32)integer<<23;
++   frac = in.f - 1.5f;
++   frac = -0.41445418f + frac*(0.95909232f + frac*(-0.33951290f + frac*0.16541097f));
++   return 1+integer+frac;
++}
++#endif /* ENABLE_QEXT */
++
+ /* Calculates an approximation of 2^x. The approximation was achieved by
+  * employing a base-2 exponential function and utilizing a Remez approximation
+  * of order 5, ensuring a controlled relative error.
+@@ -312,6 +339,7 @@
+  *         = exp2(integer) * exp2(fraction) */
+ static OPUS_INLINE float celt_exp2(float x)
+ {
++#ifdef ENABLE_QEXT
+    opus_int32 integer;
+    float frac;
+    union {
+@@ -339,7 +367,24 @@
+                + frac * (EXP2_COEFF_A4
+                + frac * (EXP2_COEFF_A5)))));
+    res.i = (opus_uint32)((opus_int32)res.i + (opus_int32)((opus_uint32)integer<<23)) & 0x7fffffff;
++   return res.f;
++#else /* !ENABLE_QEXT - use simpler approximation */
++   int integer;
++   float frac;
++   union {
++      float f;
++      opus_uint32 i;
++   } res;
++   integer = (int)floor(x);
++   if (integer < -50)
++      return 0;
++   frac = x-integer;
++   /* K0 = 1, K1 = log(2), K2 = 3-4*log(2), K3 = 3*log(2) - 2 */
++   res.f = 0.99992522f + frac * (0.69583354f
++           + frac * (0.22606716f + 0.078024523f*frac));
++   res.i = (res.i + ((opus_uint32)integer<<23)) & 0x7fffffff;
+    return res.f;
++#endif /* ENABLE_QEXT */
+ }
+
+ #else
