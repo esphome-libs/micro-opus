@@ -152,20 +152,25 @@ public:
      * The constructor always succeeds and does not allocate any resources.
      * All allocations are deferred to the first call to decode().
      *
-     * @param enable_crc Enable CRC32 validation of Ogg pages (default true)
+     * @param enable_crc Enable CRC32 validation of Ogg pages (default false)
+     * @param sample_rate Output sample rate in Hz. Must be one of: 8000, 12000,
+     *                    16000, 24000, 48000. Default is 48000 (native Opus rate).
+     *                    Lower rates reduce CPU usage but lose high-frequency content.
+     * @param channels Output channel count. 0 = use file's channel count (default).
+     *                 1 = mono, 2 = stereo. The Opus decoder handles mixing/duplication.
      *
      * @note This constructor is guaranteed not to fail. Resource allocation
      *       is deferred to the first decode() call, which can return
      *       OGG_OPUS_ALLOCATION_FAILED if memory allocation fails.
      *
-     * @note CRC Validation: When enabled (default), all Ogg pages are validated
+     * @note CRC Validation: When enabled, all Ogg pages are validated
      *       using CRC32 checksums as recommended by RFC 3533. Disabling CRC
      *       validation can provide a performance improvement but sacrifices
      *       data integrity checking. Only disable CRC for trusted sources (local
      *       files) or when performance is critical and corruption detection is
      *       not required.
      */
-    OggOpusDecoder(bool enable_crc = false);
+    OggOpusDecoder(bool enable_crc = false, uint32_t sample_rate = 48000, uint8_t channels = 0);
 
     /**
      * @brief Destroy the decoder and free resources
@@ -356,6 +361,9 @@ private:
 
     // Ogg demuxer configuration
     bool enable_crc_;  // CRC validation setting (passed to OggDemuxer)
+
+    // Output channel count (0 = use file's channel count)
+    uint8_t channels_{0};
 
     // Pre-skip tracking
     bool pre_skip_applied_{false};

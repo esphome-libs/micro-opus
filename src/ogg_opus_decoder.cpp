@@ -131,10 +131,13 @@ OggOpusResult OggOpusDecoder::processPacket(const micro_ogg::OggPacket& packet, 
             return OGG_OPUS_INPUT_INVALID;
         }
 
+        // Determine output channel count: use configured value or file's channel count
+        uint8_t output_channels = (channels_ != 0) ? channels_ : opus_head_->channel_count;
+
         // Create appropriate Opus decoder based on channel mapping
         int error = 0;
         if (opus_head_->channel_mapping == 0) {
-            opus_decoder_ = opus_decoder_create(sample_rate_, opus_head_->channel_count, &error);
+            opus_decoder_ = opus_decoder_create(sample_rate_, output_channels, &error);
 
             if (error != OPUS_OK || !opus_decoder_) {
                 return OGG_OPUS_ALLOCATION_FAILED;
@@ -145,8 +148,8 @@ OggOpusResult OggOpusDecoder::processPacket(const micro_ogg::OggPacket& packet, 
             }
         } else {
             opus_ms_decoder_ = opus_multistream_decoder_create(
-                sample_rate_, opus_head_->channel_count, opus_head_->stream_count,
-                opus_head_->coupled_count, opus_head_->channel_mapping_table, &error);
+                sample_rate_, output_channels, opus_head_->stream_count, opus_head_->coupled_count,
+                opus_head_->channel_mapping_table, &error);
 
             if (error != OPUS_OK || !opus_ms_decoder_) {
                 return OGG_OPUS_ALLOCATION_FAILED;
@@ -229,8 +232,9 @@ OggOpusResult OggOpusDecoder::processPacket(const micro_ogg::OggPacket& packet, 
             return OGG_OPUS_INPUT_INVALID;
         }
 
-        // Calculate max samples we can decode
-        size_t max_samples = output_capacity / opus_head_->channel_count;
+        // Calculate max samples we can decode (use actual output channel count)
+        uint8_t output_channels = (channels_ != 0) ? channels_ : opus_head_->channel_count;
+        size_t max_samples = output_capacity / output_channels;
         int max_frame_size = (int)std::min(max_samples, (size_t)INT_MAX);
 
         // Decode Opus packet
@@ -331,9 +335,9 @@ OggOpusResult OggOpusDecoder::processPacket(const micro_ogg::OggPacket& packet, 
 
                 size_t keep_count = decoded_samples_size - skip_count;
 
-                // Shift samples to remove skipped portion
-                memmove(output, output + (skip_count * opus_head_->channel_count),
-                        keep_count * opus_head_->channel_count * sizeof(int16_t));
+                // Shift samples to remove skipped portion (use output channel count)
+                memmove(output, output + (skip_count * output_channels),
+                        keep_count * output_channels * sizeof(int16_t));
 
                 samples_decoded_total_ += decoded_samples_size;
                 samples_decoded = keep_count;
@@ -353,10 +357,15 @@ OggOpusResult OggOpusDecoder::processPacket(const micro_ogg::OggPacket& packet, 
     return OGG_OPUS_INPUT_INVALID;
 }
 
-OggOpusDecoder::OggOpusDecoder(bool enable_crc)
-    : enable_crc_(enable_crc), ogg_demuxer_(nullptr), opus_head_(nullptr) {
+OggOpusDecoder::OggOpusDecoder(bool enable_crc, uint32_t sample_rate, uint8_t channels)
+    : enable_crc_(enable_crc),
+      sample_rate_(sample_rate),
+      channels_(channels),
+      ogg_demuxer_(nullptr),
+      opus_head_(nullptr) {
     // Lazy allocation: all resources allocated on first decode() call
     // Constructor guaranteed to succeed
+    // Note: sample_rate validation happens at decoder creation time in processPacket()
 }
 
 OggOpusDecoder::~OggOpusDecoder() {
@@ -392,7 +401,7 @@ void OggOpusDecoder::reset() {
     opus_head_.reset();
 
     state_ = STATE_EXPECT_OPUS_HEAD;
-    sample_rate_ = OPUS_SAMPLE_RATE_48K;
+    // Note: sample_rate_ and channels_ are NOT reset - they are configuration values
     samples_decoded_total_ = 0;
     pre_skip_applied_ = false;
     last_granule_position_ = 0;
@@ -411,7 +420,11 @@ uint32_t OggOpusDecoder::getSampleRate() const {
 }
 
 uint8_t OggOpusDecoder::getChannels() const {
-    return (state_ == STATE_DECODING && opus_head_) ? opus_head_->channel_count : 0;
+    if (state_ != STATE_DECODING || !opus_head_) {
+        return 0;
+    }
+    // Return configured channel count, or file's channel count if not configured
+    return (channels_ != 0) ? channels_ : opus_head_->channel_count;
 }
 
 uint16_t OggOpusDecoder::getPreSkip() const {
