@@ -1,0 +1,34 @@
+# Disable watchdog (benchmark runs continuously)
+CONFIG_ESP_TASK_WDT_EN=n
+CONFIG_ESP_TASK_WDT_INIT=n
+
+# Larger stack for encoder (uses more working memory than decoder)
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=16000
+
+# Maximum CPU frequency
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# Performance optimization
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# Enable PSRAM (octal mode for ESP32-S3)
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_USE_CAPS_ALLOC=y
+CONFIG_SPIRAM_SPEED_80M=y
+
+# Cache optimizations for better performance
+CONFIG_ESP32S3_DATA_CACHE_64KB=y
+CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
+CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y
+
+# Opus configuration - use threadsafe pseudostack
+CONFIG_OPUS_THREADSAFE_PSEUDOSTACK=y
+
+# Disable internal timing instrumentation (we do our own timing)
+CONFIG_OPUS_ENABLE_CELT_TIMING=n
+CONFIG_OPUS_ENABLE_PVQ_TIMING=n
+CONFIG_OPUS_ENABLE_QUANT_BANDS_TIMING=n
+
+# Use floating point for ESP32-S3
+CONFIG_OPUS_FLOATING_POINT=n
