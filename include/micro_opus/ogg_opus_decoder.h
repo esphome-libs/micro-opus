@@ -70,11 +70,7 @@ enum OggOpusResult : int8_t {
     OGG_OPUS_OUTPUT_BUFFER_TOO_SMALL = -5,  ///< Output buffer too small for decoded samples
 
     // Opus decode errors (issues from the Opus decoder itself)
-    OGG_OPUS_DECODE_ERROR = -6,             ///< Generic Opus decode error
-    OGG_OPUS_DECODE_INVALID_PACKET = -7,    ///< Opus decoder: invalid/corrupted packet
-    OGG_OPUS_DECODE_BUFFER_TOO_SMALL = -8,  ///< Opus decoder: internal buffer too small
-    OGG_OPUS_DECODE_INTERNAL_ERROR = -9,    ///< Opus decoder: internal error
-    OGG_OPUS_DECODE_BAD_ARG = -10           ///< Opus decoder: invalid argument to Opus decoder
+    OGG_OPUS_DECODE_ERROR = -6  ///< Opus decode failed (corrupted/invalid packet)
 };
 
 /**

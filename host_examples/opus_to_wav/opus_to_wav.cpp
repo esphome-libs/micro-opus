@@ -39,19 +39,7 @@ void printErrorDescription(micro_opus::OggOpusResult result) {
             std::cerr << " (OGG_OPUS_OUTPUT_BUFFER_TOO_SMALL)";
             break;
         case micro_opus::OGG_OPUS_DECODE_ERROR:
-            std::cerr << " (OGG_OPUS_DECODE_ERROR - Generic decode error)";
-            break;
-        case micro_opus::OGG_OPUS_DECODE_INVALID_PACKET:
-            std::cerr << " (OGG_OPUS_DECODE_INVALID_PACKET - Corrupted packet)";
-            break;
-        case micro_opus::OGG_OPUS_DECODE_BUFFER_TOO_SMALL:
-            std::cerr << " (OGG_OPUS_DECODE_BUFFER_TOO_SMALL - Output buffer too small)";
-            break;
-        case micro_opus::OGG_OPUS_DECODE_INTERNAL_ERROR:
-            std::cerr << " (OGG_OPUS_DECODE_INTERNAL_ERROR - Internal decoder error)";
-            break;
-        case micro_opus::OGG_OPUS_DECODE_BAD_ARG:
-            std::cerr << " (OGG_OPUS_DECODE_BAD_ARG - Invalid argument)";
+            std::cerr << " (OGG_OPUS_DECODE_ERROR - Decode failed)";
             break;
         default:
             break;

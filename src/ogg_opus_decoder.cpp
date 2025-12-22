@@ -268,19 +268,7 @@ OggOpusResult OggOpusDecoder::processPacket(const micro_ogg::OggPacket& packet, 
         }
 
         if (decoded_samples_int < 0) {
-            // Map Opus error codes
-            switch (decoded_samples_int) {
-                case OPUS_INVALID_PACKET:
-                    return OGG_OPUS_DECODE_INVALID_PACKET;
-                case OPUS_BUFFER_TOO_SMALL:
-                    return OGG_OPUS_DECODE_BUFFER_TOO_SMALL;
-                case OPUS_INTERNAL_ERROR:
-                    return OGG_OPUS_DECODE_INTERNAL_ERROR;
-                case OPUS_BAD_ARG:
-                    return OGG_OPUS_DECODE_BAD_ARG;
-                default:
-                    return OGG_OPUS_DECODE_ERROR;
-            }
+            return OGG_OPUS_DECODE_ERROR;
         }
         size_t decoded_samples_size = (size_t)decoded_samples_int;
 
