@@ -372,12 +372,23 @@ extern "C" void app_main(void) {
             all_success = all_success && result.success;
             speech_tests_run++;
 
-            // Skip remaining tests if encoding is slower than real-time
+            // Skip remaining tests in this mode if encoding is slower than real-time
             if (result.rtf > 1.0) {
-                ESP_LOGW(
-                    TAG,
-                    "RTF > 1.0, skipping remaining SPEECH tests (higher settings will be slower)");
-                break;
+                // Find next config with different application mode
+                int next_mode_start = i + 1;
+                while (next_mode_start < NUM_SPEECH_CONFIGS &&
+                       SPEECH_CONFIGS[next_mode_start].application == config->application) {
+                    next_mode_start++;
+                }
+
+                if (next_mode_start < NUM_SPEECH_CONFIGS) {
+                    ESP_LOGW(TAG, "RTF > 1.0, skipping remaining %s tests for speech",
+                             config->mode_name);
+                    i = next_mode_start - 1;  // -1 because loop will increment
+                } else {
+                    ESP_LOGW(TAG, "RTF > 1.0, skipping remaining SPEECH tests");
+                    break;
+                }
             }
         }
 
