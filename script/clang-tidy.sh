@@ -33,23 +33,24 @@ if [ -z "$CLANG_TIDY" ]; then
     exit 1
 fi
 
-# Check for compile_commands.json
+# Ensure compile_commands.json exists
 if [ ! -f "${BUILD_DIR}/compile_commands.json" ]; then
-    echo "Error: compile_commands.json not found in ${BUILD_DIR}"
-    echo "Run: cd host_examples/opus_to_wav && cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -B build"
-    exit 1
+    echo "Generating compile_commands.json..."
+    cmake -B "$BUILD_DIR" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON "${ROOT_DIR}/host_examples/opus_to_wav"
 fi
 
-# Source files to check
-SOURCES=(
-    # Library sources
-    "${ROOT_DIR}/src/ogg_opus_decoder.cpp"
-    "${ROOT_DIR}/src/opus_header.cpp"
-    # Host example sources
-    "${ROOT_DIR}/host_examples/opus_to_wav/opus_to_wav.cpp"
-    "${ROOT_DIR}/host_examples/opus_to_wav/wav_writer.cpp"
-    "${ROOT_DIR}/host_examples/opus_to_wav/test/"*.cpp
-)
+# Find all source files, excluding lib/, build/, .pio/, and opus-staged/ directories
+SOURCES=$(find "$ROOT_DIR/src" "$ROOT_DIR/host_examples" "$ROOT_DIR/examples" \
+    -path '*/build' -prune -o \
+    -path '*/lib' -prune -o \
+    -path '*/.pio' -prune -o \
+    -path '*/opus-staged' -prune -o \
+    \( -name '*.cpp' -o -name '*.c' \) -print 2>/dev/null || true)
+
+if [ -z "$SOURCES" ]; then
+    echo "No source files found"
+    exit 0
+fi
 
 # Parse arguments
 FIX_FLAG=""
@@ -58,4 +59,4 @@ if [ "$1" = "--fix" ]; then
 fi
 
 echo "Running clang-tidy..."
-$CLANG_TIDY -p "$BUILD_DIR" $FIX_FLAG "${SOURCES[@]}"
+$CLANG_TIDY -p "$BUILD_DIR" $FIX_FLAG $SOURCES
