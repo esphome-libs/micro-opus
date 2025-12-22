@@ -267,8 +267,8 @@ static EncodeResult run_encode_test(const AudioConfig* audio, const EncoderConfi
             size_t samples_decoded = 0;
 
             micro_opus::OggOpusResult decode_result = decoder.decode(
-                input_ptr, input_remaining, decode_buffer,
-                sizeof(decode_buffer) / sizeof(decode_buffer[0]), bytes_consumed, samples_decoded);
+                input_ptr, input_remaining, reinterpret_cast<uint8_t*>(decode_buffer),
+                sizeof(decode_buffer), bytes_consumed, samples_decoded);
 
             input_ptr += bytes_consumed;
             input_remaining -= bytes_consumed;
