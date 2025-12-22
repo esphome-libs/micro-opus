@@ -84,9 +84,9 @@ CheckOptions:
   - key: readability-identifier-naming.ConstexprVariableCase
     value: UPPER_CASE
   - key: readability-identifier-naming.GlobalConstantCase
-    value: lower_case
+    value: UPPER_CASE
   - key: readability-identifier-naming.StaticConstantCase
-    value: lower_case
+    value: UPPER_CASE
   - key: readability-identifier-naming.NamespaceCase
     value: lower_case
   - key: readability-identifier-naming.MacroDefinitionCase
