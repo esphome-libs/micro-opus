@@ -149,9 +149,11 @@ When encoding becomes slower than real-time (RTF > 1.0), the benchmark skips rem
 W (95000) ENCODE_BENCH: RTF > 1.0, skipping remaining MUSIC tests (higher settings will be slower)
 ```
 
-## Benchmark Results
+## Benchmark Results (Fixed-Point)
 
-Results from ESP32-S3 at 240MHz using fixed-point arithmetic. Values show real-time multiplier with RTF in parentheses.
+Results from ESP32-S3 at 240MHz using fixed-point arithmetic (`CONFIG_OPUS_FLOATING_POINT=n`). Fixed-point encoding is significantly faster than floating-point on ESP32-S3, especially for SILK at higher complexity levels where floating-point fails to encode in real-time.
+
+Values show real-time multiplier with RTF in parentheses.
 
 ### Speech Encoding (16kHz mono)
 
@@ -204,6 +206,40 @@ Results from ESP32-S3 at 240MHz using fixed-point arithmetic. Values show real-t
 | SILK (speech) | 4.5x @ c=0 | 1.4x @ c=8+ | Bitrate has little effect on speed |
 | CELT (speech) | 5.5x @ c=0 | 2.9x @ c=8+ | ~2x faster than SILK at same complexity |
 | CELT (music) | 3.1x @ c=0 | 1.5x @ c=8+ | Stereo 48kHz more demanding than mono 16kHz |
+
+## Benchmark Results (Floating-Point)
+
+Results with `CONFIG_OPUS_FLOATING_POINT=y` for comparison. Floating-point is significantly slower for SILK encoding.
+
+### Speech Encoding (16kHz mono) - Floating-Point
+
+| Mode | Complexity | 10 kbit/s | 16 kbit/s | Higher |
+| ---- | ---------- | --------- | --------- | ------ |
+| VOIP | 0 | 1.1x (0.90) | **0.6x (1.55)** | skipped |
+| AUDIO | 0 | 1.1x (0.89) | **0.6x (1.55)** | skipped |
+
+**Bold** = Slower than real-time (RTF > 1.0). Higher complexity levels were not tested because complexity 0 already fails at 16 kbit/s.
+
+### Music Encoding (48kHz stereo, AUDIO mode) - Floating-Point
+
+| Complexity | 64 kbit/s | 96 kbit/s | 128 kbit/s | 192 kbit/s |
+| ---------- | --------- | --------- | ---------- | ---------- |
+| 0 | 2.8x (0.36) | 2.6x (0.39) | 2.4x (0.42) | 2.1x (0.48) |
+| 2 | 2.4x (0.42) | 2.2x (0.46) | 2.1x (0.48) | 1.9x (0.54) |
+| 5 | 2.0x (0.51) | 1.8x (0.54) | 1.8x (0.57) | 1.6x (0.62) |
+| 8 | 1.3x (0.77) | 1.2x (0.83) | 1.1x (0.88) | 1.1x (0.95) |
+| 10 | 1.3x (0.77) | 1.2x (0.83) | 1.1x (0.88) | 1.1x (0.95) |
+
+### Fixed-Point vs Floating-Point Comparison
+
+| Codec | Fixed-Point | Floating-Point | Speedup |
+| ----- | ----------- | -------------- | ------- |
+| SILK (c=0, 10k) | 4.5x real-time | 1.1x real-time | **4x faster** |
+| SILK (c=0, 16k) | 3.6x real-time | 0.6x (fails) | **6x faster** |
+| CELT music (c=0, 64k) | 3.1x real-time | 2.8x real-time | 1.1x faster |
+| CELT music (c=8, 192k) | 1.5x real-time | 1.1x real-time | 1.4x faster |
+
+**Recommendation**: Use fixed-point (`CONFIG_OPUS_FLOATING_POINT=n`) for encoding on ESP32-S3. SILK encoding with floating-point is not viable for real-time applications.
 
 ## Performance Characteristics
 
