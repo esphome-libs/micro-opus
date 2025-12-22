@@ -82,9 +82,9 @@ int main(int argc, char* argv[]) {
                 size_t samples = 0;
 
                 decode_calls++;
-                micro_opus::OggOpusResult result =
-                    decoder.decode(input_buffer.data(), buffer_used, pcm_buffer.data(),
-                                   pcm_buffer.size() * sizeof(int16_t), consumed, samples);
+                micro_opus::OggOpusResult result = decoder.decode(
+                    input_buffer.data(), buffer_used, reinterpret_cast<uint8_t*>(pcm_buffer.data()),
+                    pcm_buffer.size() * sizeof(int16_t), consumed, samples);
 
                 if (decode_calls < VERBOSE_DECODE_THRESHOLD ||
                     decode_calls % PROGRESS_INTERVAL == 0) {

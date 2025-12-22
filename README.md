@@ -145,7 +145,7 @@ The `OggOpusDecoder` is a portable C++ wrapper that works on any platform, not j
 // Create decoder
 micro_opus::OggOpusDecoder decoder;
 
-// Allocate output buffer
+// Allocate output buffer (int16_t for 16-bit PCM samples)
 int16_t pcm_buffer[960 * 2];  // 20ms @ 48kHz stereo
 
 // Decode loop
@@ -154,12 +154,12 @@ while (have_input_data) {
 
     micro_opus::OggOpusResult result = decoder.decode(
         input_ptr, input_len,
-        pcm_buffer, sizeof(pcm_buffer),
+        reinterpret_cast<uint8_t*>(pcm_buffer), sizeof(pcm_buffer),
         bytes_consumed, samples_decoded
     );
 
     if (result == micro_opus::OGG_OPUS_OK && samples_decoded > 0) {
-        // Process decoded PCM samples
+        // Process decoded PCM samples (int16_t)
         // Send to I2S DAC, save to file, etc.
     }
 

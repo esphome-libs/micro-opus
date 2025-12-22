@@ -118,7 +118,7 @@ enum OggOpusResult : int8_t {
  *     size_t consumed, samples;
  *     OggOpusResult result = decoder.decode(
  *         input_ptr, input_len,
- *         pcm_buffer, sizeof(pcm_buffer),
+ *         reinterpret_cast<uint8_t*>(pcm_buffer), sizeof(pcm_buffer),
  *         consumed, samples
  *     );
  *
@@ -182,7 +182,9 @@ public:
      *
      * @param input Pointer to input Ogg Opus data (must not be nullptr)
      * @param input_len Number of bytes available in input
-     * @param output Pointer to output buffer for PCM samples (must not be nullptr)
+     * @param output Pointer to output buffer for PCM samples (must not be nullptr).
+     *               The buffer should be aligned for int16_t access. Currently outputs
+     *               16-bit signed PCM samples (int16_t).
      * @param output_size Number of bytes available in output buffer
      * @param bytes_consumed [OUT] Number of input bytes consumed (may be buffered internally)
      * @param samples_decoded [OUT] Number of PCM samples decoded (per channel)
@@ -211,7 +213,7 @@ public:
      * @note Can handle arbitrarily small input chunks (even 1 byte at a time)
      *       thanks to internal header staging buffer.
      */
-    OggOpusResult decode(const uint8_t* input, size_t input_len, int16_t* output,
+    OggOpusResult decode(const uint8_t* input, size_t input_len, uint8_t* output,
                          size_t output_size, size_t& bytes_consumed, size_t& samples_decoded);
 
     /**
@@ -341,7 +343,7 @@ private:
     OggOpusDecoder& operator=(const OggOpusDecoder&) = delete;
 
     // Internal packet processing
-    OggOpusResult process_packet(const micro_ogg::OggPacket& packet, int16_t* output,
+    OggOpusResult process_packet(const micro_ogg::OggPacket& packet, uint8_t* output,
                                  size_t output_size, size_t& samples_decoded);
 
     // Page boundary tracking helper
@@ -352,7 +354,7 @@ private:
                                             bool is_eos, bool is_last_on_page);
 
     // Pre-skip handling helper
-    OggOpusResult apply_pre_skip(int16_t* output, size_t decoded_samples, uint8_t output_channels,
+    OggOpusResult apply_pre_skip(uint8_t* output, size_t decoded_samples, uint8_t output_channels,
                                  size_t& samples_decoded);
 
     // Opus decoder creation helper
@@ -365,7 +367,7 @@ private:
                                           int64_t granule_pos, bool is_last_on_page);
     OggOpusResult handle_audio_packet(const uint8_t* packet_data, size_t packet_len,
                                       int64_t granule_pos, bool is_eos, bool is_last_on_page,
-                                      int16_t* output, size_t output_size, size_t& samples_decoded);
+                                      uint8_t* output, size_t output_size, size_t& samples_decoded);
 
     // Internal state machine
     enum State : uint8_t { STATE_EXPECT_OPUS_HEAD, STATE_EXPECT_OPUS_TAGS, STATE_DECODING };

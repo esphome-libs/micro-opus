@@ -69,7 +69,7 @@ const size_t MAX_OPUS_TAGS_SIZE = 125829120;
 const size_t MIN_OPUS_TAGS_SIZE = 16;
 }  // namespace
 
-OggOpusResult OggOpusDecoder::process_packet(const micro_ogg::OggPacket& packet, int16_t* output,
+OggOpusResult OggOpusDecoder::process_packet(const micro_ogg::OggPacket& packet, uint8_t* output,
                                              size_t output_size, size_t& samples_decoded) {
     // Extract packet data
     const uint8_t* packet_data = packet.data;
@@ -268,7 +268,7 @@ OggOpusResult OggOpusDecoder::handle_opus_tags_packet(const uint8_t* packet_data
 
 OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, size_t packet_len,
                                                   int64_t granule_pos, bool is_eos,
-                                                  bool is_last_on_page, int16_t* output,
+                                                  bool is_last_on_page, uint8_t* output,
                                                   size_t output_size, size_t& samples_decoded) {
     // RFC 7845 Section 3: Mark EOS seen
     if (is_eos) {
@@ -303,15 +303,17 @@ OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, si
     int max_frame_size = (int)std::min(max_samples, (size_t)INT_MAX);
 
     // Decode Opus packet
+    // Cast uint8_t* output buffer to int16_t* for the Opus decoder
+    int16_t* pcm_output = reinterpret_cast<int16_t*>(output);
     int decoded_samples_int = 0;
     if (opus_decoder_) {
-        decoded_samples_int =
-            opus_decode(opus_decoder_, packet_data, (opus_int32)packet_len, output, max_frame_size,
-                        0  // No FEC
-            );
+        decoded_samples_int = opus_decode(opus_decoder_, packet_data, (opus_int32)packet_len,
+                                          pcm_output, max_frame_size,
+                                          0  // No FEC
+        );
     } else if (opus_ms_decoder_) {
         decoded_samples_int = opus_multistream_decode(
-            opus_ms_decoder_, packet_data, (opus_int32)packet_len, output, max_frame_size,
+            opus_ms_decoder_, packet_data, (opus_int32)packet_len, pcm_output, max_frame_size,
             0  // No FEC
         );
     } else {
@@ -334,7 +336,7 @@ OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, si
     return apply_pre_skip(output, decoded_samples_size, output_channels_, samples_decoded);
 }
 
-OggOpusResult OggOpusDecoder::apply_pre_skip(int16_t* output, size_t decoded_samples,
+OggOpusResult OggOpusDecoder::apply_pre_skip(uint8_t* output, size_t decoded_samples,
                                              uint8_t output_channels, size_t& samples_decoded) {
     if (!pre_skip_applied_ && opus_head_->pre_skip > 0) {
         // Validate sample_rate_ is one of the allowed Opus sample rates
@@ -364,9 +366,10 @@ OggOpusResult OggOpusDecoder::apply_pre_skip(int16_t* output, size_t decoded_sam
 
             size_t keep_count = decoded_samples - skip_count;
 
-            // Shift samples to remove skipped portion
-            memmove(output, output + (skip_count * output_channels),
-                    keep_count * output_channels * sizeof(int16_t));
+            // Shift samples to remove skipped portion (working with bytes)
+            size_t skip_bytes = skip_count * output_channels * sizeof(int16_t);
+            size_t keep_bytes = keep_count * output_channels * sizeof(int16_t);
+            memmove(output, output + skip_bytes, keep_bytes);
 
             samples_decoded_total_ += decoded_samples;
             samples_decoded = keep_count;
@@ -495,7 +498,7 @@ bool OggOpusDecoder::is_initialized() const {
     return state_ == STATE_DECODING;
 }
 
-OggOpusResult OggOpusDecoder::decode(const uint8_t* input, size_t input_len, int16_t* output,
+OggOpusResult OggOpusDecoder::decode(const uint8_t* input, size_t input_len, uint8_t* output,
                                      size_t output_size, size_t& bytes_consumed,
                                      size_t& samples_decoded) {
     // Validate input pointer
