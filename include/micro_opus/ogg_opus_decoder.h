@@ -423,6 +423,9 @@ private:
     // Output channel count (0 = use file's channel count)
     uint8_t channels_{0};
 
+    // Resolved output channel count (set after OpusHead parsing)
+    uint8_t output_channels_{0};
+
     // Pre-skip tracking
     bool pre_skip_applied_{false};
 

@@ -215,10 +215,10 @@ OggOpusResult OggOpusDecoder::handle_opus_head_packet(const uint8_t* packet_data
     }
 
     // Determine output channel count: use configured value or file's channel count
-    uint8_t output_channels = (channels_ != 0) ? channels_ : opus_head_->channel_count;
+    output_channels_ = (channels_ != 0) ? channels_ : opus_head_->channel_count;
 
     // Create Opus decoder
-    OggOpusResult decoder_result = create_opus_decoder(output_channels);
+    OggOpusResult decoder_result = create_opus_decoder(output_channels_);
     if (decoder_result != OGG_OPUS_OK) {
         return decoder_result;
     }
@@ -285,16 +285,13 @@ OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, si
         return OGG_OPUS_INPUT_INVALID;
     }
 
-    // Calculate max samples we can decode (use actual output channel count)
-    uint8_t output_channels = (channels_ != 0) ? channels_ : opus_head_->channel_count;
-
     // Calculate required buffer size for this packet
     int nb_samples =
         opus_packet_get_nb_samples(packet_data, (opus_int32)packet_len, (opus_int32)sample_rate_);
 
     if (nb_samples > 0) {
         size_t required_samples = static_cast<size_t>(nb_samples);
-        last_required_buffer_bytes_ = required_samples * output_channels * sizeof(int16_t);
+        last_required_buffer_bytes_ = required_samples * output_channels_ * sizeof(int16_t);
 
         // Check if output buffer is large enough
         if (output_size < last_required_buffer_bytes_) {
@@ -302,7 +299,7 @@ OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, si
         }
     }
 
-    size_t max_samples = output_size / (output_channels * sizeof(int16_t));
+    size_t max_samples = output_size / (output_channels_ * sizeof(int16_t));
     int max_frame_size = (int)std::min(max_samples, (size_t)INT_MAX);
 
     // Decode Opus packet
@@ -334,7 +331,7 @@ OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, si
         return granule_result;
     }
 
-    return apply_pre_skip(output, decoded_samples_size, output_channels, samples_decoded);
+    return apply_pre_skip(output, decoded_samples_size, output_channels_, samples_decoded);
 }
 
 OggOpusResult OggOpusDecoder::apply_pre_skip(int16_t* output, size_t decoded_samples,
@@ -430,6 +427,7 @@ void OggOpusDecoder::reset() {
 
     state_ = STATE_EXPECT_OPUS_HEAD;
     // Note: sample_rate_ and channels_ are NOT reset - they are configuration values
+    output_channels_ = 0;  // Will be set after next OpusHead parsing
     samples_decoded_total_ = 0;
     pre_skip_applied_ = false;
     last_granule_position_ = 0;
@@ -449,11 +447,7 @@ uint32_t OggOpusDecoder::get_sample_rate() const {
 }
 
 uint8_t OggOpusDecoder::get_channels() const {
-    if (state_ != STATE_DECODING || !opus_head_) {
-        return 0;
-    }
-    // Return configured channel count, or file's channel count if not configured
-    return (channels_ != 0) ? channels_ : opus_head_->channel_count;
+    return output_channels_;
 }
 
 uint8_t OggOpusDecoder::get_bit_depth() const {
