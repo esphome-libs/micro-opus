@@ -312,11 +312,13 @@ OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, si
             opus_decode(opus_decoder_, packet_data, (opus_int32)packet_len, output, max_frame_size,
                         0  // No FEC
             );
-    } else {
+    } else if (opus_ms_decoder_) {
         decoded_samples_int = opus_multistream_decode(
             opus_ms_decoder_, packet_data, (opus_int32)packet_len, output, max_frame_size,
             0  // No FEC
         );
+    } else {
+        return OGG_OPUS_NOT_INITIALIZED;
     }
 
     if (decoded_samples_int < 0) {
