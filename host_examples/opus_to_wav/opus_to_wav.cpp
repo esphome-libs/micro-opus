@@ -103,9 +103,9 @@ int main(int argc, char* argv[]) {
 
                 decode_calls++;
 
-                micro_opus::OggOpusResult result =
-                    decoder.decode(input_buffer.data() + chunk_offset, bytes_read - chunk_offset,
-                                   pcm_buffer.data(), pcm_buffer.size(), consumed, samples);
+                micro_opus::OggOpusResult result = decoder.decode(
+                    input_buffer.data() + chunk_offset, bytes_read - chunk_offset,
+                    pcm_buffer.data(), pcm_buffer.size() * sizeof(int16_t), consumed, samples);
 
                 total_bytes_consumed += consumed;
                 chunk_offset += consumed;

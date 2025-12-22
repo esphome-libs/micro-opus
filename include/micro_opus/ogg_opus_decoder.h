@@ -118,7 +118,7 @@ enum OggOpusResult : int8_t {
  *     size_t consumed, samples;
  *     OggOpusResult result = decoder.decode(
  *         input_ptr, input_len,
- *         pcm_buffer, sizeof(pcm_buffer) / sizeof(int16_t),
+ *         pcm_buffer, sizeof(pcm_buffer),
  *         consumed, samples
  *     );
  *
@@ -182,7 +182,7 @@ public:
      * @param input Pointer to input Ogg Opus data (must not be nullptr)
      * @param input_len Number of bytes available in input
      * @param output Pointer to output buffer for PCM samples (must not be nullptr)
-     * @param output_capacity Number of int16_t samples output buffer can hold
+     * @param output_size Number of bytes available in output buffer
      * @param bytes_consumed [OUT] Number of input bytes consumed (may be buffered internally)
      * @param samples_decoded [OUT] Number of PCM samples decoded (per channel)
      *
@@ -205,13 +205,13 @@ public:
      *
      * @note The user must advance the input pointer by bytes_consumed before
      *       calling decode() again.
-     * @note output_capacity is in samples (not bytes). For stereo, you need
-     *       output_capacity >= samples_per_frame * 2.
+     * @note output_size is in bytes. For stereo 16-bit audio, you need
+     *       output_size >= samples_per_frame * 2 channels * 2 bytes.
      * @note Can handle arbitrarily small input chunks (even 1 byte at a time)
      *       thanks to internal header staging buffer.
      */
     OggOpusResult decode(const uint8_t* input, size_t input_len, int16_t* output,
-                         size_t output_capacity, size_t& bytes_consumed, size_t& samples_decoded);
+                         size_t output_size, size_t& bytes_consumed, size_t& samples_decoded);
 
     /**
      * @brief Get the sample rate of the decoded audio
@@ -340,7 +340,7 @@ private:
 
     // Internal packet processing
     OggOpusResult processPacket(const micro_ogg::OggPacket& packet, int16_t* output,
-                                size_t output_capacity, size_t& samples_decoded);
+                                size_t output_size, size_t& samples_decoded);
 
     // Internal state machine
     enum State : uint8_t { STATE_EXPECT_OPUS_HEAD, STATE_EXPECT_OPUS_TAGS, STATE_DECODING };

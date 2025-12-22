@@ -152,7 +152,7 @@ while (have_input_data) {
 
     micro_opus::OggOpusResult result = decoder.decode(
         input_ptr, input_len,
-        pcm_buffer, sizeof(pcm_buffer) / sizeof(int16_t),
+        pcm_buffer, sizeof(pcm_buffer),
         bytes_consumed, samples_decoded
     );
 

@@ -70,7 +70,7 @@ const size_t min_opus_tags_size = 16;
 }  // namespace
 
 OggOpusResult OggOpusDecoder::processPacket(const micro_ogg::OggPacket& packet, int16_t* output,
-                                            size_t output_capacity, size_t& samples_decoded) {
+                                            size_t output_size, size_t& samples_decoded) {
     // Extract packet data
     const uint8_t* packet_data = packet.data;
     size_t packet_len = packet.length;
@@ -244,12 +244,12 @@ OggOpusResult OggOpusDecoder::processPacket(const micro_ogg::OggPacket& packet, 
             last_required_buffer_bytes_ = required_samples * output_channels * sizeof(int16_t);
 
             // Check if output buffer is large enough
-            if (output_capacity < required_samples * output_channels) {
+            if (output_size < last_required_buffer_bytes_) {
                 return OGG_OPUS_OUTPUT_BUFFER_TOO_SMALL;
             }
         }
 
-        size_t max_samples = output_capacity / output_channels;
+        size_t max_samples = output_size / (output_channels * sizeof(int16_t));
         int max_frame_size = (int)std::min(max_samples, (size_t)INT_MAX);
 
         // Decode Opus packet
@@ -477,7 +477,7 @@ bool OggOpusDecoder::isInitialized() const {
 }
 
 OggOpusResult OggOpusDecoder::decode(const uint8_t* input, size_t input_len, int16_t* output,
-                                     size_t output_capacity, size_t& bytes_consumed,
+                                     size_t output_size, size_t& bytes_consumed,
                                      size_t& samples_decoded) {
     // Validate input pointer
     if (!input) {
@@ -489,7 +489,7 @@ OggOpusResult OggOpusDecoder::decode(const uint8_t* input, size_t input_len, int
         if (!output) {
             return OGG_OPUS_INPUT_INVALID;
         }
-        if (output_capacity == 0) {
+        if (output_size == 0) {
             return OGG_OPUS_OUTPUT_BUFFER_TOO_SMALL;
         }
     }
@@ -589,7 +589,7 @@ OggOpusResult OggOpusDecoder::decode(const uint8_t* input, size_t input_len, int
     if (parse_state.result == micro_ogg::OGG_OK) {
         // We have a complete packet - process it
         OggOpusResult result =
-            processPacket(parse_state.packet, output, output_capacity, samples_decoded);
+            processPacket(parse_state.packet, output, output_size, samples_decoded);
         return result;
     }
 

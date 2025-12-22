@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
 
                 micro_opus::OggOpusResult result =
                     decoder.decode(input_buffer.data(), offset, pcm_buffer.data(),
-                                   pcm_buffer.size(), consumed, samples);
+                                   pcm_buffer.size() * sizeof(int16_t), consumed, samples);
 
                 if (result < 0 && consumed == 0) {
                     // Real error (not just need-more-data)
