@@ -70,8 +70,9 @@ int main(int argc, char* argv[]) {
         const size_t chunk_size = 4096;
         std::vector<uint8_t> input_buffer(chunk_size);
 
-        // Output PCM buffer (60ms at 48kHz stereo = 5760 samples * 2 channels, max Opus frame)
-        const size_t pcm_buffer_size = static_cast<size_t>(5760) * 2;
+        // Output PCM buffer - start with typical 20ms stereo frame, will auto-resize if needed
+        // (20ms at 48kHz stereo = 960 samples * 2 channels = 1920)
+        const size_t pcm_buffer_size = static_cast<size_t>(960) * 2;
         std::vector<int16_t> pcm_buffer(pcm_buffer_size);
 
         WavWriter* wav_writer = nullptr;
@@ -134,6 +135,16 @@ int main(int argc, char* argv[]) {
 
                 // Standard C error checking: result != 0 means error
                 if (result != 0) {
+                    // Handle buffer too small by resizing and retrying
+                    if (result == micro_opus::OGG_OPUS_OUTPUT_BUFFER_TOO_SMALL) {
+                        size_t required_bytes = decoder.getRequiredOutputBufferSize();
+                        size_t required_samples = required_bytes / sizeof(int16_t);
+                        std::cout << "Resizing PCM buffer from " << pcm_buffer.size() << " to "
+                                  << required_samples << " samples\n";
+                        pcm_buffer.resize(required_samples);
+                        continue;  // Retry decode with larger buffer
+                    }
+
                     // Error occurred - provide detailed error information
                     std::cerr << "Error at byte position " << total_bytes_consumed << " in file\n";
                     std::cerr << "Decode call #" << decode_calls << ", consumed=" << consumed
