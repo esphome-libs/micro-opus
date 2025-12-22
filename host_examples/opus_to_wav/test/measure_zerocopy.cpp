@@ -9,6 +9,7 @@
 
 #include "micro_opus/ogg_opus_decoder.h"
 
+#include <cstring>
 #include <exception>
 #include <fstream>
 #include <iostream>
