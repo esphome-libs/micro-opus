@@ -111,17 +111,17 @@ int main(int argc, char* argv[]) {
                 chunk_offset += consumed;
 
                 // Check if decoder is now initialized (after OpusHead parsed)
-                if (!decoder_initialized && decoder.isInitialized()) {
+                if (!decoder_initialized && decoder.is_initialized()) {
                     decoder_initialized = true;
 
-                    uint32_t sample_rate = decoder.getSampleRate();
-                    uint8_t channels = decoder.getChannels();
+                    uint32_t sample_rate = decoder.get_sample_rate();
+                    uint8_t channels = decoder.get_channels();
 
                     std::cout << "Opus stream info:\n";
                     std::cout << "  Sample rate: " << sample_rate << " Hz\n";
                     std::cout << "  Channels: " << static_cast<int>(channels)
                               << (channels == 1 ? " (mono)" : " (stereo)") << "\n";
-                    std::cout << "  Pre-skip: " << decoder.getPreSkip() << " samples\n";
+                    std::cout << "  Pre-skip: " << decoder.get_pre_skip() << " samples\n";
 
                     // Create WAV writer with decoder's format
                     wav_writer = new WavWriter(output_file, sample_rate, channels, 16);
@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
                 if (result != 0) {
                     // Handle buffer too small by resizing and retrying
                     if (result == micro_opus::OGG_OPUS_OUTPUT_BUFFER_TOO_SMALL) {
-                        size_t required_bytes = decoder.getRequiredOutputBufferSize();
+                        size_t required_bytes = decoder.get_required_output_buffer_size();
                         size_t required_samples = required_bytes / sizeof(int16_t);
                         std::cout << "Resizing PCM buffer from " << pcm_buffer.size() << " to "
                                   << required_samples << " samples\n";
@@ -192,7 +192,7 @@ int main(int argc, char* argv[]) {
             std::cout << "Total samples written: " << wav_writer->getSamplesWritten() << "\n";
             std::cout << "Duration: "
                       << (wav_writer->getSamplesWritten() /
-                          static_cast<double>(decoder.getSampleRate()))
+                          static_cast<double>(decoder.get_sample_rate()))
                       << " seconds\n";
             std::cout << "Output file: " << output_file << "\n";
 

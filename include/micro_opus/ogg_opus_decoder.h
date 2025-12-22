@@ -222,7 +222,7 @@ public:
      * @note This is the decoder's sample rate, not the original input
      *       sample rate (which is stored in OpusHead for informational purposes)
      */
-    uint32_t getSampleRate() const;
+    uint32_t get_sample_rate() const;
 
     /**
      * @brief Get the number of channels
@@ -230,21 +230,21 @@ public:
      * @return Number of channels (1 for mono, 2 for stereo, etc.)
      *         Returns 0 if header not yet parsed
      */
-    uint8_t getChannels() const;
+    uint8_t get_channels() const;
 
     /**
      * @brief Get the bit depth of decoded samples
      *
      * @return Bit depth (always 16 for int16_t output samples)
      */
-    uint8_t getBitDepth() const;
+    uint8_t get_bit_depth() const;
 
     /**
      * @brief Get the number of bytes per sample
      *
      * @return Bytes per sample (always 2 for int16_t output samples)
      */
-    uint8_t getBytesPerSample() const;
+    uint8_t get_bytes_per_sample() const;
 
     /**
      * @brief Get the pre-skip value
@@ -254,7 +254,7 @@ public:
      *
      * @return Pre-skip samples at 48kHz, or 0 if header not yet parsed
      */
-    uint16_t getPreSkip() const;
+    uint16_t get_pre_skip() const;
 
     /**
      * @brief Get the output gain
@@ -263,7 +263,7 @@ public:
      *
      * @return Output gain, or 0 if header not yet parsed
      */
-    int16_t getOutputGain() const;
+    int16_t get_output_gain() const;
 
     /**
      * @brief Get the required output buffer size for the last packet
@@ -284,14 +284,14 @@ public:
      * @note This value is updated each time an audio packet is processed,
      *       regardless of whether decoding succeeded or failed.
      */
-    size_t getRequiredOutputBufferSize() const;
+    size_t get_required_output_buffer_size() const;
 
     /**
      * @brief Check if the OpusHead header has been parsed
      *
      * @return true if header is parsed and decoder is initialized
      */
-    bool isInitialized() const;
+    bool is_initialized() const;
 
     /**
      * @brief Reset the decoder state
@@ -311,8 +311,9 @@ public:
     /**
      * @brief Get debug state from demuxer (for debugging only)
      */
-    void getDemuxerDebugState(int& state, bool& assembling, bool& skipping, size_t& packet_size,
-                              size_t& body_consumed, uint8_t& seg_index, uint8_t& seg_count) const;
+    void get_demuxer_debug_state(int& state, bool& assembling, bool& skipping, size_t& packet_size,
+                                 size_t& body_consumed, uint8_t& seg_index,
+                                 uint8_t& seg_count) const;
 
     /**
      * @brief Get zero-copy statistics from the internal OggDemuxer
@@ -322,7 +323,7 @@ public:
      *
      * @note These statistics track all packets demuxed, including headers (OpusHead/OpusTags)
      */
-    void getDemuxerStats(size_t& zero_copy_count, size_t& buffered_count) const;
+    void get_demuxer_stats(size_t& zero_copy_count, size_t& buffered_count) const;
 
     /**
      * @brief Get buffer statistics from the internal OggDemuxer
@@ -330,7 +331,7 @@ public:
      * @param current_capacity Output: current internal buffer capacity in bytes
      * @param max_capacity Output: maximum internal buffer capacity reached in bytes
      */
-    void getBufferStats(size_t& current_capacity, size_t& max_capacity) const;
+    void get_buffer_stats(size_t& current_capacity, size_t& max_capacity) const;
 #endif  // MICRO_OGG_DEMUXER_DEBUG
 
 private:
@@ -339,8 +340,8 @@ private:
     OggOpusDecoder& operator=(const OggOpusDecoder&) = delete;
 
     // Internal packet processing
-    OggOpusResult processPacket(const micro_ogg::OggPacket& packet, int16_t* output,
-                                size_t output_size, size_t& samples_decoded);
+    OggOpusResult process_packet(const micro_ogg::OggPacket& packet, int16_t* output,
+                                 size_t output_size, size_t& samples_decoded);
 
     // Internal state machine
     enum State : uint8_t { STATE_EXPECT_OPUS_HEAD, STATE_EXPECT_OPUS_TAGS, STATE_DECODING };

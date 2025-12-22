@@ -87,10 +87,10 @@ int main(int argc, char* argv[]) {
 
         // Get statistics
         size_t zero_copy = 0, buffered = 0;
-        decoder.getDemuxerStats(zero_copy, buffered);
+        decoder.get_demuxer_stats(zero_copy, buffered);
 
         size_t current_buffer_size = 0, max_buffer_size = 0;
-        decoder.getBufferStats(current_buffer_size, max_buffer_size);
+        decoder.get_buffer_stats(current_buffer_size, max_buffer_size);
 
         size_t total_packets = zero_copy + buffered;
 

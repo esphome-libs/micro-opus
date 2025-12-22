@@ -69,8 +69,8 @@ const size_t max_opus_tags_size = 125829120;
 const size_t min_opus_tags_size = 16;
 }  // namespace
 
-OggOpusResult OggOpusDecoder::processPacket(const micro_ogg::OggPacket& packet, int16_t* output,
-                                            size_t output_size, size_t& samples_decoded) {
+OggOpusResult OggOpusDecoder::process_packet(const micro_ogg::OggPacket& packet, int16_t* output,
+                                             size_t output_size, size_t& samples_decoded) {
     // Extract packet data
     const uint8_t* packet_data = packet.data;
     size_t packet_len = packet.length;
@@ -419,11 +419,11 @@ void OggOpusDecoder::reset() {
     previous_packet_was_last_on_page_ = true;  // First packet after reset is on a new page
 }
 
-uint32_t OggOpusDecoder::getSampleRate() const {
+uint32_t OggOpusDecoder::get_sample_rate() const {
     return (state_ == STATE_DECODING) ? sample_rate_ : 0;
 }
 
-uint8_t OggOpusDecoder::getChannels() const {
+uint8_t OggOpusDecoder::get_channels() const {
     if (state_ != STATE_DECODING || !opus_head_) {
         return 0;
     }
@@ -431,32 +431,32 @@ uint8_t OggOpusDecoder::getChannels() const {
     return (channels_ != 0) ? channels_ : opus_head_->channel_count;
 }
 
-uint8_t OggOpusDecoder::getBitDepth() const {
+uint8_t OggOpusDecoder::get_bit_depth() const {
     return 16;  // Opus decoder always outputs 16-bit samples
 }
 
-uint8_t OggOpusDecoder::getBytesPerSample() const {
+uint8_t OggOpusDecoder::get_bytes_per_sample() const {
     return 2;  // sizeof(int16_t)
 }
 
-uint16_t OggOpusDecoder::getPreSkip() const {
+uint16_t OggOpusDecoder::get_pre_skip() const {
     // Only return valid pre-skip after OpusHead has been parsed
     return (state_ == STATE_DECODING && opus_head_) ? opus_head_->pre_skip : 0;
 }
 
-int16_t OggOpusDecoder::getOutputGain() const {
+int16_t OggOpusDecoder::get_output_gain() const {
     // Only return valid output gain after OpusHead has been parsed
     return (state_ == STATE_DECODING && opus_head_) ? opus_head_->output_gain : 0;
 }
 
-size_t OggOpusDecoder::getRequiredOutputBufferSize() const {
+size_t OggOpusDecoder::get_required_output_buffer_size() const {
     return last_required_buffer_bytes_;
 }
 
 #ifdef MICRO_OGG_DEMUXER_DEBUG
-void OggOpusDecoder::getDemuxerDebugState(int& state, bool& assembling, bool& skipping,
-                                          size_t& packet_size, size_t& body_consumed,
-                                          uint8_t& seg_index, uint8_t& seg_count) const {
+void OggOpusDecoder::get_demuxer_debug_state(int& state, bool& assembling, bool& skipping,
+                                             size_t& packet_size, size_t& body_consumed,
+                                             uint8_t& seg_index, uint8_t& seg_count) const {
     if (ogg_demuxer_) {
         ogg_demuxer_->getDebugState(state, assembling, skipping, packet_size, body_consumed,
                                     seg_index, seg_count);
@@ -472,7 +472,7 @@ void OggOpusDecoder::getDemuxerDebugState(int& state, bool& assembling, bool& sk
 }
 #endif  // MICRO_OGG_DEMUXER_DEBUG
 
-bool OggOpusDecoder::isInitialized() const {
+bool OggOpusDecoder::is_initialized() const {
     return state_ == STATE_DECODING;
 }
 
@@ -589,7 +589,7 @@ OggOpusResult OggOpusDecoder::decode(const uint8_t* input, size_t input_len, int
     if (parse_state.result == micro_ogg::OGG_OK) {
         // We have a complete packet - process it
         OggOpusResult result =
-            processPacket(parse_state.packet, output, output_size, samples_decoded);
+            process_packet(parse_state.packet, output, output_size, samples_decoded);
         return result;
     }
 
@@ -630,7 +630,7 @@ OggOpusResult OggOpusDecoder::decode(const uint8_t* input, size_t input_len, int
 }
 
 #ifdef MICRO_OGG_DEMUXER_DEBUG
-void OggOpusDecoder::getDemuxerStats(size_t& zero_copy_count, size_t& buffered_count) const {
+void OggOpusDecoder::get_demuxer_stats(size_t& zero_copy_count, size_t& buffered_count) const {
     if (ogg_demuxer_) {
         ogg_demuxer_->getStats(zero_copy_count, buffered_count);
     } else {
@@ -639,7 +639,7 @@ void OggOpusDecoder::getDemuxerStats(size_t& zero_copy_count, size_t& buffered_c
     }
 }
 
-void OggOpusDecoder::getBufferStats(size_t& current_capacity, size_t& max_capacity) const {
+void OggOpusDecoder::get_buffer_stats(size_t& current_capacity, size_t& max_capacity) const {
     if (ogg_demuxer_) {
         ogg_demuxer_->getBufferStats(current_capacity, max_capacity);
     } else {

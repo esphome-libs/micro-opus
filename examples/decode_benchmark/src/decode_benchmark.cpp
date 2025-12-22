@@ -166,9 +166,9 @@ static DecodeResult decode_full_file(const uint8_t* audio_data, size_t audio_siz
         int64_t frame_time = esp_timer_get_time() - frame_start;
 
         // Once initialized, allocate PCM buffer for typical 20ms frame (will auto-resize if needed)
-        if (pcm_buffer.empty() && decoder.isInitialized()) {
-            size_t samples_per_20ms = decoder.getSampleRate() / 50;
-            size_t buffer_size = samples_per_20ms * decoder.getChannels();
+        if (pcm_buffer.empty() && decoder.is_initialized()) {
+            size_t samples_per_20ms = decoder.get_sample_rate() / 50;
+            size_t buffer_size = samples_per_20ms * decoder.get_channels();
             pcm_buffer.resize(buffer_size);
         }
 
@@ -181,7 +181,7 @@ static DecodeResult decode_full_file(const uint8_t* audio_data, size_t audio_siz
         if (decode_result != micro_opus::OGG_OPUS_OK) {
             // Handle buffer too small by resizing and retrying
             if (decode_result == micro_opus::OGG_OPUS_OUTPUT_BUFFER_TOO_SMALL) {
-                size_t required_bytes = decoder.getRequiredOutputBufferSize();
+                size_t required_bytes = decoder.get_required_output_buffer_size();
                 size_t required_samples = required_bytes / sizeof(int16_t);
                 ESP_LOGI(TAG, "Resizing PCM buffer from %zu to %zu samples", pcm_buffer.size(),
                          required_samples);
@@ -207,7 +207,7 @@ static DecodeResult decode_full_file(const uint8_t* audio_data, size_t audio_siz
     }
 
     result.total_time_us = esp_timer_get_time() - iteration_start;
-    result.sample_rate = decoder.getSampleRate();
+    result.sample_rate = decoder.get_sample_rate();
 
     return result;
 }

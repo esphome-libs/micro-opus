@@ -167,8 +167,8 @@ while (have_input_data) {
 }
 
 // Get stream info
-uint32_t sample_rate = decoder.getSampleRate();
-uint8_t channels = decoder.getChannels();
+uint32_t sample_rate = decoder.get_sample_rate();
+uint8_t channels = decoder.get_channels();
 ```
 
 See the [decode benchmark example](examples/decode_benchmark) for a complete working example.

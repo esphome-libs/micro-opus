@@ -295,12 +295,12 @@ int main() {
 
         if (samples_decoded > 0) {
             printf("Decoded %zu samples (per channel)\n", samples_decoded);
-            printf("  Sample rate: %u Hz\n", decoder.getSampleRate());
-            printf("  Channels: %u\n", decoder.getChannels());
+            printf("  Sample rate: %u Hz\n", decoder.get_sample_rate());
+            printf("  Channels: %u\n", decoder.get_channels());
 
             // Verify we got 3 channels
-            if (decoder.getChannels() != 3) {
-                printf("ERROR: Expected 3 channels, got %u\n", decoder.getChannels());
+            if (decoder.get_channels() != 3) {
+                printf("ERROR: Expected 3 channels, got %u\n", decoder.get_channels());
                 return 1;
             }
 
