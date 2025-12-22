@@ -435,6 +435,10 @@ uint8_t OggOpusDecoder::getBitDepth() const {
     return 16;  // Opus decoder always outputs 16-bit samples
 }
 
+uint8_t OggOpusDecoder::getBytesPerSample() const {
+    return 2;  // sizeof(int16_t)
+}
+
 uint16_t OggOpusDecoder::getPreSkip() const {
     // Only return valid pre-skip after OpusHead has been parsed
     return (state_ == STATE_DECODING && opus_head_) ? opus_head_->pre_skip : 0;

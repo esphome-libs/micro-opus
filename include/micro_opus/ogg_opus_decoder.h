@@ -240,6 +240,13 @@ public:
     uint8_t getBitDepth() const;
 
     /**
+     * @brief Get the number of bytes per sample
+     *
+     * @return Bytes per sample (always 2 for int16_t output samples)
+     */
+    uint8_t getBytesPerSample() const;
+
+    /**
      * @brief Get the pre-skip value
      *
      * Pre-skip is the number of samples (at 48kHz) that should be
