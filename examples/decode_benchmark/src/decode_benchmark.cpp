@@ -35,19 +35,19 @@
 #include "micro_opus/ogg_opus_decoder.h"
 #include "test_audio_music.h"
 #include "test_audio_speech.h"
-#include <inttypes.h>
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
 
+#include <cinttypes>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 #include <vector>
 
-static const char* TAG = "DECODE_BENCH";
+static const char* const TAG = "DECODE_BENCH";
 
 static const int MAX_CONCURRENT_TASKS = 4;
 
 // Audio test configurations
-enum class AudioType {
+enum class AudioType : uint8_t {
     MUSIC,  // CELT codec (high-bitrate stereo)
     SPEECH  // SILK codec (low-bitrate mono)
 };
@@ -105,10 +105,13 @@ static void init_stats(Stats* s) {
 
 // Update statistics with new timing value and sample count
 static void update_stats(Stats* s, int64_t time_us, size_t samples) {
-    if (time_us < s->min_us)
+    if (time_us < s->min_us) {
         s->min_us = time_us;
-    if (time_us > s->max_us)
+    }
+
+    if (time_us > s->max_us) {
         s->max_us = time_us;
+    }
     s->sum_us += time_us;
     s->sum_sq_us += time_us * time_us;
     s->count++;
@@ -132,7 +135,7 @@ static void log_stats(const char* prefix, const char* name, Stats* s) {
 
 // Decode the full test audio file and return results
 static DecodeResult decode_full_file(const uint8_t* audio_data, size_t audio_size) {
-    DecodeResult result;
+    DecodeResult result{};
     init_stats(&result.frame_stats);
     result.success = true;
     result.sample_rate = 0;
