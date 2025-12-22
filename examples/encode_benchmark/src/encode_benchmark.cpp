@@ -218,7 +218,7 @@ static EncodeResult run_encode_test(const AudioConfig* audio, const EncoderConfi
     const int FRAME_SIZE = audio->sample_rate / 50;  // 320 for 16kHz, 960 for 48kHz
 
     // Buffers - static to avoid stack overflow
-    // Size for max case: 960 samples * 2 channels * 2 frames = 3840 samples
+    // Size for max case: 960 samples * 2 channels * 2 frames = 3840 int16 audio samples
     static int16_t decode_buffer[960 * 2 * 2];
     static int16_t accum_buffer[960 * 2 * 2];
     static uint8_t encoded_output[16000];  // Max recommended Opus packet size

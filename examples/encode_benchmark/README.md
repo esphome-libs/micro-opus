@@ -275,22 +275,15 @@ The default configuration uses 240MHz, fixed-point, THREADSAFE_PSEUDOSTACK, and 
 Key settings in `sdkconfig.defaults`:
 
 ```ini
-# Larger stack for encoder (uses more working memory than decoder)
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=16000
-
 # Fixed-point (currently configured, can change to floating-point)
 CONFIG_OPUS_FLOATING_POINT=n
 ```
-
-Note: The encoder requires more stack and working memory than the decoder. The main task stack is set to 16KB by default.
 
 ## Memory Usage
 
 | Type | Size | Notes |
 | ---- | ---- | ----- |
 | Flash | ~640KB | 100KB code + 498KB music + 38KB speech |
-| Main task stack | 16KB | Larger than decoder due to encoder requirements |
-| Encoder state | ~24-60KB | Depends on sample rate and channels |
 | Pseudostack | 120KB | Shared between encoder and decoder |
 
 ## Troubleshooting
@@ -322,7 +315,7 @@ Note: The encoder requires more stack and working memory than the decoder. The m
 **Speech Audio (SILK)**: The Art of War, Chapters 1-2, 30s extract.
 
 - Author: Sun Tzu
-- Reader: Moira Fogarty
+- Reader: Moira Fogarty (October 2006)
 - Source: [LibriVox](https://archive.org/details/art_of_war_librivox) on Archive.org
 - License: Public Domain
 - Format: Ogg Opus 16kHz mono ~10kbit/s (SILK codec)
