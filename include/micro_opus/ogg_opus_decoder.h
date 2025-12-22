@@ -343,6 +343,29 @@ private:
     OggOpusResult process_packet(const micro_ogg::OggPacket& packet, int16_t* output,
                                  size_t output_size, size_t& samples_decoded);
 
+    // Page boundary tracking helper
+    void update_page_tracking(bool is_last_on_page);
+
+    // Granule position validation helper (RFC 7845 compliance)
+    OggOpusResult validate_granule_position(int64_t granule_pos, size_t decoded_samples,
+                                            bool is_eos, bool is_last_on_page);
+
+    // Pre-skip handling helper
+    OggOpusResult apply_pre_skip(int16_t* output, size_t decoded_samples, uint8_t output_channels,
+                                 size_t& samples_decoded);
+
+    // Opus decoder creation helper
+    OggOpusResult create_opus_decoder(uint8_t output_channels);
+
+    // State handlers
+    OggOpusResult handle_opus_head_packet(const uint8_t* packet_data, size_t packet_len,
+                                          int64_t granule_pos, bool is_bos, bool is_last_on_page);
+    OggOpusResult handle_opus_tags_packet(const uint8_t* packet_data, size_t packet_len,
+                                          int64_t granule_pos, bool is_last_on_page);
+    OggOpusResult handle_audio_packet(const uint8_t* packet_data, size_t packet_len,
+                                      int64_t granule_pos, bool is_eos, bool is_last_on_page,
+                                      int16_t* output, size_t output_size, size_t& samples_decoded);
+
     // Internal state machine
     enum State : uint8_t { STATE_EXPECT_OPUS_HEAD, STATE_EXPECT_OPUS_TAGS, STATE_DECODING };
 

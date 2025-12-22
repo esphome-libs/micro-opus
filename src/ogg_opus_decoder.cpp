@@ -88,276 +88,299 @@ OggOpusResult OggOpusDecoder::process_packet(const micro_ogg::OggPacket& packet,
         }
     }
 
-    if (state_ == STATE_EXPECT_OPUS_HEAD) {
-        // First packet should be OpusHead and must have BOS flag
-        if (!is_bos || !is_opus_head(packet_data, packet_len)) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
+    // Dispatch to state handler
+    switch (state_) {
+        case STATE_EXPECT_OPUS_HEAD:
+            samples_decoded = 0;
+            return handle_opus_head_packet(packet_data, packet_len, granule_pos, is_bos,
+                                           is_last_on_page);
 
-        // RFC 7845 Section 4: First Ogg page MUST contain only the OpusHead packet
-        if (has_seen_opus_head_) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
-        has_seen_opus_head_ = true;
+        case STATE_EXPECT_OPUS_TAGS:
+            samples_decoded = 0;
+            return handle_opus_tags_packet(packet_data, packet_len, granule_pos, is_last_on_page);
 
-        // Track packets on current page
-        packets_on_current_page_++;
-
-        // RFC 7845 Section 4: OpusHead must be alone on page 0
-        if (is_last_on_page) {
-            if (packets_on_current_page_ != 1) {
-                return OGG_OPUS_INPUT_INVALID;
-            }
-            packets_on_current_page_ = 0;
-            expect_continued_packet_ = ogg_demuxer_->previousPageEndedWithContinuedPacket();
-            previous_packet_was_last_on_page_ = true;
-        } else {
-            previous_packet_was_last_on_page_ = false;
-        }
-
-        // Lazy allocation: allocate OpusHead structure when needed
-        if (!opus_head_) {
-            opus_head_ = std::make_unique<OpusHead>();
-        }
-
-        OpusHeaderResult header_result = parse_opus_head(packet_data, packet_len, *opus_head_);
-
-        if (header_result != OPUS_HEADER_OK) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
-
-        // Validate granule position for OpusHead page
-        if (granule_pos != 0) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
-
-        // Determine output channel count: use configured value or file's channel count
-        uint8_t output_channels = (channels_ != 0) ? channels_ : opus_head_->channel_count;
-
-        // Create appropriate Opus decoder based on channel mapping
-        int error = 0;
-        if (opus_head_->channel_mapping == 0) {
-            opus_decoder_ = opus_decoder_create(sample_rate_, output_channels, &error);
-
-            if (error != OPUS_OK || !opus_decoder_) {
-                return OGG_OPUS_ALLOCATION_FAILED;
-            }
-
-            if (opus_head_->output_gain != 0) {
-                opus_decoder_ctl(opus_decoder_, OPUS_SET_GAIN((opus_int32)opus_head_->output_gain));
-            }
-        } else {
-            opus_ms_decoder_ = opus_multistream_decoder_create(
-                sample_rate_, output_channels, opus_head_->stream_count, opus_head_->coupled_count,
-                opus_head_->channel_mapping_table, &error);
-
-            if (error != OPUS_OK || !opus_ms_decoder_) {
-                return OGG_OPUS_ALLOCATION_FAILED;
-            }
-
-            if (opus_head_->output_gain != 0) {
-                opus_multistream_decoder_ctl(opus_ms_decoder_,
-                                             OPUS_SET_GAIN((opus_int32)opus_head_->output_gain));
-            }
-        }
-
-        state_ = STATE_EXPECT_OPUS_TAGS;
-        samples_decoded = 0;
-        return OGG_OPUS_OK;
+        case STATE_DECODING:
+            return handle_audio_packet(packet_data, packet_len, granule_pos, is_eos,
+                                       is_last_on_page, output, output_size, samples_decoded);
     }
 
-    if (state_ == STATE_EXPECT_OPUS_TAGS) {
-        // Second packet should be OpusTags
-        if (!is_opus_tags(packet_data, packet_len)) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
+    // Unreachable with valid enum, but satisfy compiler
+    return OGG_OPUS_INPUT_INVALID;
+}
 
-        if (has_seen_opus_tags_) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
-        has_seen_opus_tags_ = true;
-
-        // RFC 7845 Section 5.2: OpusTags MUST NOT exceed 125,829,120 octets
-        opus_tags_accumulated_size_ += packet_len;
-        if (opus_tags_accumulated_size_ > max_opus_tags_size) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
-
-        // RFC 7845 Section 5.2: Minimum OpusTags size validation
-        if (packet_len < min_opus_tags_size) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
-
-        // Track packets on current page
-        packets_on_current_page_++;
-
-        // RFC 7845 Section 4: OpusTags must be alone on the page where it completes
-        if (is_last_on_page) {
-            if (packets_on_current_page_ != 1) {
-                return OGG_OPUS_INPUT_INVALID;
-            }
-
-            // Validate granule position for OpusTags page
-            if (granule_pos != 0) {
-                return OGG_OPUS_INPUT_INVALID;
-            }
-
-            packets_on_current_page_ = 0;
-            expect_continued_packet_ = ogg_demuxer_->previousPageEndedWithContinuedPacket();
-            previous_packet_was_last_on_page_ = true;
-        } else {
-            previous_packet_was_last_on_page_ = false;
-        }
-
-        state_ = STATE_DECODING;
-        samples_decoded = 0;
-        return OGG_OPUS_OK;
+void OggOpusDecoder::update_page_tracking(bool is_last_on_page) {
+    packets_on_current_page_++;
+    if (is_last_on_page) {
+        packets_on_current_page_ = 0;
+        expect_continued_packet_ = ogg_demuxer_->previousPageEndedWithContinuedPacket();
+        previous_packet_was_last_on_page_ = true;
+    } else {
+        previous_packet_was_last_on_page_ = false;
     }
+}
 
-    if (state_ == STATE_DECODING) {
-        // Audio packet - decode it
-
-        // RFC 7845 Section 3: Mark EOS seen
-        if (is_eos) {
-            eos_seen_ = true;
-        }
-
-        // RFC 7845 Section 4.1: MUST treat zero-octet audio data packet as malformed
-        if (packet_len == 0) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
-
-        // RFC 7845 Section 3: Audio data packets SHOULD NOT exceed 61,440 octets
-        if (packet_len > max_opus_packet_size) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
-
-        // Calculate max samples we can decode (use actual output channel count)
-        uint8_t output_channels = (channels_ != 0) ? channels_ : opus_head_->channel_count;
-
-        // Calculate required buffer size for this packet
-        int nb_samples = opus_packet_get_nb_samples(packet_data, (opus_int32)packet_len,
-                                                    (opus_int32)sample_rate_);
-
-        if (nb_samples > 0) {
-            size_t required_samples = static_cast<size_t>(nb_samples);
-            last_required_buffer_bytes_ = required_samples * output_channels * sizeof(int16_t);
-
-            // Check if output buffer is large enough
-            if (output_size < last_required_buffer_bytes_) {
-                return OGG_OPUS_OUTPUT_BUFFER_TOO_SMALL;
-            }
-        }
-
-        size_t max_samples = output_size / (output_channels * sizeof(int16_t));
-        int max_frame_size = (int)std::min(max_samples, (size_t)INT_MAX);
-
-        // Decode Opus packet
-        int decoded_samples_int = 0;
-        if (opus_decoder_) {
-            decoded_samples_int = opus_decode(opus_decoder_, packet_data, (opus_int32)packet_len,
-                                              output, max_frame_size,
-                                              0  // No FEC
-            );
-        } else {
-            decoded_samples_int = opus_multistream_decode(
-                opus_ms_decoder_, packet_data, (opus_int32)packet_len, output, max_frame_size,
-                0  // No FEC
-            );
-        }
-
-        if (decoded_samples_int < 0) {
-            return OGG_OPUS_DECODE_ERROR;
-        }
-        size_t decoded_samples_size = (size_t)decoded_samples_int;
-
-        // Track packets on current page
-        packets_on_current_page_++;
-        if (is_last_on_page) {
-            packets_on_current_page_ = 0;
-            expect_continued_packet_ = ogg_demuxer_->previousPageEndedWithContinuedPacket();
-            previous_packet_was_last_on_page_ = true;
-        } else {
-            previous_packet_was_last_on_page_ = false;
-        }
-
+OggOpusResult OggOpusDecoder::validate_granule_position(int64_t granule_pos, size_t decoded_samples,
+                                                        bool is_eos, bool is_last_on_page) {
+    if (granule_pos > 0 && (uint64_t)granule_pos != INVALID_GRANULE_POSITION) {
         // RFC 7845 Section 4: First audio data page granule position validation
-        if (granule_pos > 0 && (uint64_t)granule_pos != INVALID_GRANULE_POSITION) {
-            if (first_audio_page_samples_ == -1 && last_granule_position_ == 0) {
-                first_audio_page_samples_ = 0;
-            }
+        if (first_audio_page_samples_ == -1 && last_granule_position_ == 0) {
+            first_audio_page_samples_ = 0;
+        }
 
-            if (first_audio_page_samples_ >= 0) {
-                first_audio_page_samples_ += decoded_samples_size;
+        if (first_audio_page_samples_ >= 0) {
+            first_audio_page_samples_ += decoded_samples;
 
-                if (is_last_on_page) {
-                    if (!is_eos && granule_pos < first_audio_page_samples_) {
-                        return OGG_OPUS_INPUT_INVALID;
-                    }
-                    first_audio_page_samples_ = -1;
+            if (is_last_on_page) {
+                if (!is_eos && granule_pos < first_audio_page_samples_) {
+                    return OGG_OPUS_INPUT_INVALID;
                 }
+                first_audio_page_samples_ = -1;
             }
         }
 
         // Validate monotonically increasing granule position
-        if (granule_pos > 0 && (uint64_t)granule_pos != INVALID_GRANULE_POSITION) {
-            if (last_granule_position_ > 0) {
-                if (granule_pos < last_granule_position_) {
-                    return OGG_OPUS_INPUT_INVALID;
-                }
+        if (last_granule_position_ > 0) {
+            if (granule_pos < last_granule_position_) {
+                return OGG_OPUS_INPUT_INVALID;
             }
-            last_granule_position_ = granule_pos;
+        }
+        last_granule_position_ = granule_pos;
+    }
+    return OGG_OPUS_OK;
+}
+
+OggOpusResult OggOpusDecoder::create_opus_decoder(uint8_t output_channels) {
+    int error = 0;
+    if (opus_head_->channel_mapping == 0) {
+        opus_decoder_ = opus_decoder_create(sample_rate_, output_channels, &error);
+
+        if (error != OPUS_OK || !opus_decoder_) {
+            return OGG_OPUS_ALLOCATION_FAILED;
         }
 
-        // Handle pre-skip
-        if (!pre_skip_applied_ && opus_head_->pre_skip > 0) {
-            // Validate sample_rate_ is one of the allowed Opus sample rates
-            if (sample_rate_ != OPUS_SAMPLE_RATE_8K && sample_rate_ != OPUS_SAMPLE_RATE_12K &&
-                sample_rate_ != OPUS_SAMPLE_RATE_16K && sample_rate_ != OPUS_SAMPLE_RATE_24K &&
-                sample_rate_ != OPUS_SAMPLE_RATE_48K) {
+        if (opus_head_->output_gain != 0) {
+            opus_decoder_ctl(opus_decoder_, OPUS_SET_GAIN((opus_int32)opus_head_->output_gain));
+        }
+    } else {
+        opus_ms_decoder_ = opus_multistream_decoder_create(
+            sample_rate_, output_channels, opus_head_->stream_count, opus_head_->coupled_count,
+            opus_head_->channel_mapping_table, &error);
+
+        if (error != OPUS_OK || !opus_ms_decoder_) {
+            return OGG_OPUS_ALLOCATION_FAILED;
+        }
+
+        if (opus_head_->output_gain != 0) {
+            opus_multistream_decoder_ctl(opus_ms_decoder_,
+                                         OPUS_SET_GAIN((opus_int32)opus_head_->output_gain));
+        }
+    }
+    return OGG_OPUS_OK;
+}
+
+OggOpusResult OggOpusDecoder::handle_opus_head_packet(const uint8_t* packet_data, size_t packet_len,
+                                                      int64_t granule_pos, bool is_bos,
+                                                      bool is_last_on_page) {
+    // First packet should be OpusHead and must have BOS flag
+    if (!is_bos || !is_opus_head(packet_data, packet_len)) {
+        return OGG_OPUS_INPUT_INVALID;
+    }
+
+    // RFC 7845 Section 4: First Ogg page MUST contain only the OpusHead packet
+    if (has_seen_opus_head_) {
+        return OGG_OPUS_INPUT_INVALID;
+    }
+    has_seen_opus_head_ = true;
+
+    // RFC 7845 Section 4: OpusHead must be alone on page 0
+    if (is_last_on_page && packets_on_current_page_ != 0) {
+        return OGG_OPUS_INPUT_INVALID;
+    }
+    update_page_tracking(is_last_on_page);
+
+    // Lazy allocation: allocate OpusHead structure when needed
+    if (!opus_head_) {
+        opus_head_ = std::make_unique<OpusHead>();
+    }
+
+    OpusHeaderResult header_result = parse_opus_head(packet_data, packet_len, *opus_head_);
+
+    if (header_result != OPUS_HEADER_OK) {
+        return OGG_OPUS_INPUT_INVALID;
+    }
+
+    // Validate granule position for OpusHead page
+    if (granule_pos != 0) {
+        return OGG_OPUS_INPUT_INVALID;
+    }
+
+    // Determine output channel count: use configured value or file's channel count
+    uint8_t output_channels = (channels_ != 0) ? channels_ : opus_head_->channel_count;
+
+    // Create Opus decoder
+    OggOpusResult decoder_result = create_opus_decoder(output_channels);
+    if (decoder_result != OGG_OPUS_OK) {
+        return decoder_result;
+    }
+
+    state_ = STATE_EXPECT_OPUS_TAGS;
+    return OGG_OPUS_OK;
+}
+
+OggOpusResult OggOpusDecoder::handle_opus_tags_packet(const uint8_t* packet_data, size_t packet_len,
+                                                      int64_t granule_pos, bool is_last_on_page) {
+    // Second packet should be OpusTags
+    if (!is_opus_tags(packet_data, packet_len)) {
+        return OGG_OPUS_INPUT_INVALID;
+    }
+
+    if (has_seen_opus_tags_) {
+        return OGG_OPUS_INPUT_INVALID;
+    }
+    has_seen_opus_tags_ = true;
+
+    // RFC 7845 Section 5.2: OpusTags MUST NOT exceed 125,829,120 octets
+    opus_tags_accumulated_size_ += packet_len;
+    if (opus_tags_accumulated_size_ > max_opus_tags_size) {
+        return OGG_OPUS_INPUT_INVALID;
+    }
+
+    // RFC 7845 Section 5.2: Minimum OpusTags size validation
+    if (packet_len < min_opus_tags_size) {
+        return OGG_OPUS_INPUT_INVALID;
+    }
+
+    // RFC 7845 Section 4: OpusTags must be alone on the page where it completes
+    if (is_last_on_page) {
+        if (packets_on_current_page_ != 0) {
+            return OGG_OPUS_INPUT_INVALID;
+        }
+        // Validate granule position for OpusTags page
+        if (granule_pos != 0) {
+            return OGG_OPUS_INPUT_INVALID;
+        }
+    }
+    update_page_tracking(is_last_on_page);
+
+    state_ = STATE_DECODING;
+    return OGG_OPUS_OK;
+}
+
+OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, size_t packet_len,
+                                                  int64_t granule_pos, bool is_eos,
+                                                  bool is_last_on_page, int16_t* output,
+                                                  size_t output_size, size_t& samples_decoded) {
+    // RFC 7845 Section 3: Mark EOS seen
+    if (is_eos) {
+        eos_seen_ = true;
+    }
+
+    // RFC 7845 Section 4.1: MUST treat zero-octet audio data packet as malformed
+    if (packet_len == 0) {
+        return OGG_OPUS_INPUT_INVALID;
+    }
+
+    // RFC 7845 Section 3: Audio data packets SHOULD NOT exceed 61,440 octets
+    if (packet_len > max_opus_packet_size) {
+        return OGG_OPUS_INPUT_INVALID;
+    }
+
+    // Calculate max samples we can decode (use actual output channel count)
+    uint8_t output_channels = (channels_ != 0) ? channels_ : opus_head_->channel_count;
+
+    // Calculate required buffer size for this packet
+    int nb_samples =
+        opus_packet_get_nb_samples(packet_data, (opus_int32)packet_len, (opus_int32)sample_rate_);
+
+    if (nb_samples > 0) {
+        size_t required_samples = static_cast<size_t>(nb_samples);
+        last_required_buffer_bytes_ = required_samples * output_channels * sizeof(int16_t);
+
+        // Check if output buffer is large enough
+        if (output_size < last_required_buffer_bytes_) {
+            return OGG_OPUS_OUTPUT_BUFFER_TOO_SMALL;
+        }
+    }
+
+    size_t max_samples = output_size / (output_channels * sizeof(int16_t));
+    int max_frame_size = (int)std::min(max_samples, (size_t)INT_MAX);
+
+    // Decode Opus packet
+    int decoded_samples_int = 0;
+    if (opus_decoder_) {
+        decoded_samples_int =
+            opus_decode(opus_decoder_, packet_data, (opus_int32)packet_len, output, max_frame_size,
+                        0  // No FEC
+            );
+    } else {
+        decoded_samples_int = opus_multistream_decode(
+            opus_ms_decoder_, packet_data, (opus_int32)packet_len, output, max_frame_size,
+            0  // No FEC
+        );
+    }
+
+    if (decoded_samples_int < 0) {
+        return OGG_OPUS_DECODE_ERROR;
+    }
+    size_t decoded_samples_size = (size_t)decoded_samples_int;
+
+    update_page_tracking(is_last_on_page);
+
+    OggOpusResult granule_result =
+        validate_granule_position(granule_pos, decoded_samples_size, is_eos, is_last_on_page);
+    if (granule_result != OGG_OPUS_OK) {
+        return granule_result;
+    }
+
+    return apply_pre_skip(output, decoded_samples_size, output_channels, samples_decoded);
+}
+
+OggOpusResult OggOpusDecoder::apply_pre_skip(int16_t* output, size_t decoded_samples,
+                                             uint8_t output_channels, size_t& samples_decoded) {
+    if (!pre_skip_applied_ && opus_head_->pre_skip > 0) {
+        // Validate sample_rate_ is one of the allowed Opus sample rates
+        if (sample_rate_ != OPUS_SAMPLE_RATE_8K && sample_rate_ != OPUS_SAMPLE_RATE_12K &&
+            sample_rate_ != OPUS_SAMPLE_RATE_16K && sample_rate_ != OPUS_SAMPLE_RATE_24K &&
+            sample_rate_ != OPUS_SAMPLE_RATE_48K) {
+            return OGG_OPUS_INPUT_INVALID;
+        }
+
+        // Convert pre-skip from 48kHz units to current sample rate
+        uint64_t pre_skip_at_sample_rate =
+            ((uint64_t)opus_head_->pre_skip * (uint64_t)sample_rate_) / OPUS_SAMPLE_RATE_48K;
+
+        if (samples_decoded_total_ + decoded_samples <= pre_skip_at_sample_rate) {
+            // Entire frame is within pre-skip range
+            samples_decoded_total_ += decoded_samples;
+            samples_decoded = 0;
+            return OGG_OPUS_OK;
+        }
+        if (samples_decoded_total_ < pre_skip_at_sample_rate) {
+            // Partial frame needs to be skipped
+            size_t skip_count = pre_skip_at_sample_rate - samples_decoded_total_;
+
+            if (skip_count > decoded_samples) {
                 return OGG_OPUS_INPUT_INVALID;
             }
 
-            // Convert pre-skip from 48kHz units to current sample rate
-            uint64_t pre_skip_at_sample_rate =
-                ((uint64_t)opus_head_->pre_skip * (uint64_t)sample_rate_) / OPUS_SAMPLE_RATE_48K;
+            size_t keep_count = decoded_samples - skip_count;
 
-            if (samples_decoded_total_ + decoded_samples_size <= pre_skip_at_sample_rate) {
-                // Entire frame is within pre-skip range
-                samples_decoded_total_ += decoded_samples_size;
-                samples_decoded = 0;
-                return OGG_OPUS_OK;
-            }
-            if (samples_decoded_total_ < pre_skip_at_sample_rate) {
-                // Partial frame needs to be skipped
-                size_t skip_count = pre_skip_at_sample_rate - samples_decoded_total_;
+            // Shift samples to remove skipped portion
+            memmove(output, output + (skip_count * output_channels),
+                    keep_count * output_channels * sizeof(int16_t));
 
-                if (skip_count > decoded_samples_size) {
-                    return OGG_OPUS_INPUT_INVALID;
-                }
-
-                size_t keep_count = decoded_samples_size - skip_count;
-
-                // Shift samples to remove skipped portion (use output channel count)
-                memmove(output, output + (skip_count * output_channels),
-                        keep_count * output_channels * sizeof(int16_t));
-
-                samples_decoded_total_ += decoded_samples_size;
-                samples_decoded = keep_count;
-                pre_skip_applied_ = true;
-                return OGG_OPUS_OK;
-            }
-
+            samples_decoded_total_ += decoded_samples;
+            samples_decoded = keep_count;
             pre_skip_applied_ = true;
+            return OGG_OPUS_OK;
         }
 
-        samples_decoded_total_ += decoded_samples_size;
-        samples_decoded = decoded_samples_size;
-        return OGG_OPUS_OK;
+        pre_skip_applied_ = true;
     }
 
-    // Should never reach here
-    return OGG_OPUS_INPUT_INVALID;
+    samples_decoded_total_ += decoded_samples;
+    samples_decoded = decoded_samples;
+    return OGG_OPUS_OK;
 }
 
 OggOpusDecoder::OggOpusDecoder(bool enable_crc, uint32_t sample_rate, uint8_t channels)
