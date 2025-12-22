@@ -236,12 +236,11 @@ OggOpusResult OggOpusDecoder::processPacket(const micro_ogg::OggPacket& packet, 
         uint8_t output_channels = (channels_ != 0) ? channels_ : opus_head_->channel_count;
 
         // Calculate required buffer size for this packet
-        int samples_per_frame =
-            opus_packet_get_samples_per_frame(packet_data, (opus_int32)sample_rate_);
-        int nb_frames = opus_packet_get_nb_frames(packet_data, (opus_int32)packet_len);
+        int nb_samples = opus_packet_get_nb_samples(packet_data, (opus_int32)packet_len,
+                                                    (opus_int32)sample_rate_);
 
-        if (samples_per_frame > 0 && nb_frames > 0) {
-            size_t required_samples = (size_t)samples_per_frame * (size_t)nb_frames;
+        if (nb_samples > 0) {
+            size_t required_samples = static_cast<size_t>(nb_samples);
             last_required_buffer_bytes_ = required_samples * output_channels * sizeof(int16_t);
 
             // Check if output buffer is large enough
