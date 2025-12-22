@@ -16,8 +16,8 @@
  * Implements RFC 7845 OpusHead and OpusTags parsing
  */
 
-#ifndef OPUS_HEADER_HPP
-#define OPUS_HEADER_HPP
+#ifndef OPUS_HEADER_H
+#define OPUS_HEADER_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -83,4 +83,4 @@ bool isOpusTags(const uint8_t* packet, size_t packet_len);
 
 }  // namespace micro_opus
 
-#endif  // OPUS_HEADER_HPP
+#endif  // OPUS_HEADER_H

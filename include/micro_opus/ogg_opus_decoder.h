@@ -17,8 +17,8 @@
  * and streaming decoding of Opus audio.
  */
 
-#ifndef OGG_OPUS_DECODER_HPP
-#define OGG_OPUS_DECODER_HPP
+#ifndef OGG_OPUS_DECODER_H
+#define OGG_OPUS_DECODER_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -425,4 +425,4 @@ private:
 
 }  // namespace micro_opus
 
-#endif  // OGG_OPUS_DECODER_HPP
+#endif  // OGG_OPUS_DECODER_H
