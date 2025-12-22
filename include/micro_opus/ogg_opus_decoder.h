@@ -399,6 +399,12 @@ private:
     // Granule position tracking for validation (RFC 7845 Section 4)
     int64_t last_granule_position_{0};
 
+    // End trimming: granule position from previous page (for calculating page sample delta)
+    int64_t prev_page_granule_position_{0};
+
+    // End trimming: cumulative samples decoded on current page (at output sample rate)
+    size_t samples_on_current_page_{0};
+
     // RFC 7845 Section 4: Total size across all continuation pages
     size_t opus_tags_accumulated_size_{0};
 

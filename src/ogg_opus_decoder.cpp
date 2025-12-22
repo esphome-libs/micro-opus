@@ -333,6 +333,44 @@ OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, si
         return granule_result;
     }
 
+    // Track cumulative samples on current page (at output sample rate, before any trimming)
+    samples_on_current_page_ += decoded_samples_size;
+
+    // RFC 7845 Section 4: End trimming for gapless playback
+    // On the last packet of the EOS page, trim excess samples based on granule position delta
+    if (is_last_on_page && is_eos && granule_pos > 0 &&
+        (uint64_t)granule_pos != INVALID_GRANULE_POSITION && prev_page_granule_position_ > 0) {
+        // Calculate expected samples for this entire page based on granule position delta
+        // Granule positions are always at 48kHz (RFC 7845)
+        int64_t expected_at_48k = granule_pos - prev_page_granule_position_;
+
+        if (expected_at_48k >= 0) {
+            // Convert to output sample rate
+            size_t expected_samples_on_page =
+                ((uint64_t)expected_at_48k * sample_rate_) / OPUS_SAMPLE_RATE_48K;
+
+            // If we decoded more samples on this page than expected, trim from this packet
+            if (samples_on_current_page_ > expected_samples_on_page) {
+                size_t samples_to_trim = samples_on_current_page_ - expected_samples_on_page;
+
+                if (samples_to_trim < decoded_samples_size) {
+                    decoded_samples_size -= samples_to_trim;
+                } else {
+                    // Entire packet should be trimmed (encoder shouldn't do this, but handle it)
+                    decoded_samples_size = 0;
+                }
+            }
+        }
+    }
+
+    // Update page tracking when page ends
+    if (is_last_on_page) {
+        if (granule_pos > 0 && (uint64_t)granule_pos != INVALID_GRANULE_POSITION) {
+            prev_page_granule_position_ = granule_pos;
+        }
+        samples_on_current_page_ = 0;
+    }
+
     return apply_pre_skip(output, decoded_samples_size, output_channels_, samples_decoded);
 }
 
@@ -434,6 +472,8 @@ void OggOpusDecoder::reset() {
     samples_decoded_total_ = 0;
     pre_skip_applied_ = false;
     last_granule_position_ = 0;
+    prev_page_granule_position_ = 0;
+    samples_on_current_page_ = 0;
     last_required_buffer_bytes_ = 0;
     has_seen_opus_head_ = false;
     has_seen_opus_tags_ = false;
