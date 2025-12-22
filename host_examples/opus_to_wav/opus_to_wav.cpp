@@ -25,12 +25,12 @@
 #include <iostream>
 #include <vector>
 
-void printUsage(const char* program_name) {
+void print_usage(const char* program_name) {
     std::cerr << "Usage: " << program_name << " <input.opus> <output.wav>\n";
     std::cerr << "\nConverts an Ogg Opus file to WAV format.\n";
 }
 
-void printErrorDescription(micro_opus::OggOpusResult result) {
+void print_error_description(micro_opus::OggOpusResult result) {
     switch (result) {
         case micro_opus::OGG_OPUS_INPUT_INVALID:
             std::cerr << " (OGG_OPUS_INPUT_INVALID - Invalid Ogg/Opus stream)";
@@ -49,7 +49,7 @@ void printErrorDescription(micro_opus::OggOpusResult result) {
 int main(int argc, char* argv[]) {
     try {
         if (argc != 3) {
-            printUsage(argv[0]);
+            print_usage(argv[0]);
             return 1;
         }
 
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
                               << ", samples=" << samples << "\n";
                     std::cerr << "Error: Decoding failed with error code: "
                               << static_cast<int>(result);
-                    printErrorDescription(result);
+                    print_error_description(result);
                     std::cerr << "\n";
                     { delete wav_writer; }
                     return 1;

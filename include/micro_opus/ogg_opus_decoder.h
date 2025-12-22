@@ -166,7 +166,8 @@ public:
      *       files) or when performance is critical and corruption detection is
      *       not required.
      */
-    OggOpusDecoder(bool enable_crc = false, uint32_t sample_rate = 48000, uint8_t channels = 0);
+    OggOpusDecoder(bool enable_crc = false, uint32_t sample_rate = OPUS_DEFAULT_SAMPLE_RATE,
+                   uint8_t channels = 0);
 
     /**
      * @brief Destroy the decoder and free resources

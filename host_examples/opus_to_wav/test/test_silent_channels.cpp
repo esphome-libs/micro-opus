@@ -56,20 +56,20 @@ static const uint32_t crc_lookup[256] = {
     0xafb010b1, 0xab710d06, 0xa6322bdf, 0xa2f33668, 0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4};
 
 // Helper to write little-endian integers
-static void writeLe32(uint8_t* buf, uint32_t val) {
+static void write_le32(uint8_t* buf, uint32_t val) {
     buf[0] = val & 0xFF;
     buf[1] = (val >> 8) & 0xFF;
     buf[2] = (val >> 16) & 0xFF;
     buf[3] = (val >> 24) & 0xFF;
 }
 
-static void writeLe16(uint8_t* buf, uint16_t val) {
+static void write_le16(uint8_t* buf, uint16_t val) {
     buf[0] = val & 0xFF;
     buf[1] = (val >> 8) & 0xFF;
 }
 
 // Calculate Ogg CRC32
-static uint32_t calculateCrc32(const uint8_t* buffer, size_t size, uint32_t crc) {
+static uint32_t calculate_crc32(const uint8_t* buffer, size_t size, uint32_t crc) {
     while (size >= 8) {
         crc ^= (buffer[0] << 24) | (buffer[1] << 16) | (buffer[2] << 8) | buffer[3];
         crc = crc_lookup[(crc >> 24) & 0xff] ^ (crc << 8);
@@ -96,10 +96,10 @@ static uint32_t calculateCrc32(const uint8_t* buffer, size_t size, uint32_t crc)
 }
 
 // Helper to create Ogg page header
-static std::vector<uint8_t> createOggPage(uint8_t header_type, uint64_t granule_pos,
-                                          uint32_t serial_number, uint32_t page_sequence,
-                                          const std::vector<uint8_t>& packet_data,
-                                          bool complete_packet = true) {
+static std::vector<uint8_t> create_ogg_page(uint8_t header_type, uint64_t granule_pos,
+                                            uint32_t serial_number, uint32_t page_sequence,
+                                            const std::vector<uint8_t>& packet_data,
+                                            bool complete_packet = true) {
     std::vector<uint8_t> page;
 
     // Ogg page header
@@ -117,12 +117,12 @@ static std::vector<uint8_t> createOggPage(uint8_t header_type, uint64_t granule_
 
     // Serial number (4 bytes)
     uint8_t serial[4];
-    writeLe32(serial, serial_number);
+    write_le32(serial, serial_number);
     page.insert(page.end(), serial, serial + 4);
 
     // Page sequence (4 bytes)
     uint8_t seq[4];
-    writeLe32(seq, page_sequence);
+    write_le32(seq, page_sequence);
     page.insert(page.end(), seq, seq + 4);
 
     // Checksum position (we'll fill this in later)
@@ -155,14 +155,14 @@ static std::vector<uint8_t> createOggPage(uint8_t header_type, uint64_t granule_
     page.insert(page.end(), packet_data.begin(), packet_data.end());
 
     // Calculate and set CRC
-    uint32_t crc = calculateCrc32(page.data(), page.size(), 0);
-    writeLe32(&page[checksum_pos], crc);
+    uint32_t crc = calculate_crc32(page.data(), page.size(), 0);
+    write_le32(&page[checksum_pos], crc);
 
     return page;
 }
 
 // Create OpusHead with silent channel mapping
-static std::vector<uint8_t> createOpusHeadWithSilentChannel() {
+static std::vector<uint8_t> create_opus_head_with_silent_channel() {
     std::vector<uint8_t> head;
 
     // Magic signature
@@ -176,17 +176,17 @@ static std::vector<uint8_t> createOpusHeadWithSilentChannel() {
 
     // Pre-skip (2 bytes)
     uint8_t pre_skip[2];
-    writeLe16(pre_skip, TEST_PRE_SKIP);
+    write_le16(pre_skip, TEST_PRE_SKIP);
     head.insert(head.end(), pre_skip, pre_skip + 2);
 
     // Input sample rate (4 bytes) - 48000 Hz
     uint8_t sample_rate[4];
-    writeLe32(sample_rate, TEST_SAMPLE_RATE);
+    write_le32(sample_rate, TEST_SAMPLE_RATE);
     head.insert(head.end(), sample_rate, sample_rate + 4);
 
     // Output gain (2 bytes)
     uint8_t gain[2];
-    writeLe16(gain, 0);
+    write_le16(gain, 0);
     head.insert(head.end(), gain, gain + 2);
 
     // Channel mapping family: 1 (Vorbis channel order)
@@ -210,7 +210,7 @@ static std::vector<uint8_t> createOpusHeadWithSilentChannel() {
 }
 
 // Create OpusTags
-static std::vector<uint8_t> createOpusTags() {
+static std::vector<uint8_t> create_opus_tags() {
     std::vector<uint8_t> tags;
 
     // Magic signature
@@ -219,7 +219,7 @@ static std::vector<uint8_t> createOpusTags() {
     // Vendor string length (4 bytes)
     const char* vendor = "test";
     uint8_t vendor_len[4];
-    writeLe32(vendor_len, strlen(vendor));
+    write_le32(vendor_len, strlen(vendor));
     tags.insert(tags.end(), vendor_len, vendor_len + 4);
 
     // Vendor string
@@ -227,14 +227,14 @@ static std::vector<uint8_t> createOpusTags() {
 
     // User comment list length (4 bytes) - 0 comments
     uint8_t comment_count[4];
-    writeLe32(comment_count, 0);
+    write_le32(comment_count, 0);
     tags.insert(tags.end(), comment_count, comment_count + 4);
 
     return tags;
 }
 
 // Create a minimal valid Opus packet (silence, ~20ms)
-static std::vector<uint8_t> createOpusPacket() {
+static std::vector<uint8_t> create_opus_packet() {
     // This is a valid Opus packet that decodes to silence
     // Byte layout: TOC, frame data...
     // 0x40: TOC byte - config 16 (SILK-only NB), stereo, 20ms, code 0
@@ -251,18 +251,18 @@ int main() {
     std::vector<uint8_t> stream;
 
     // Page 0: OpusHead (BOS)
-    auto opus_head = createOpusHeadWithSilentChannel();
-    auto page0 = createOggPage(0x02, 0, TEST_SERIAL_NUMBER, 0, opus_head);
+    auto opus_head = create_opus_head_with_silent_channel();
+    auto page0 = create_ogg_page(0x02, 0, TEST_SERIAL_NUMBER, 0, opus_head);
     stream.insert(stream.end(), page0.begin(), page0.end());
 
     // Page 1: OpusTags
-    auto opus_tags = createOpusTags();
-    auto page1 = createOggPage(0x00, 0, TEST_SERIAL_NUMBER, 1, opus_tags);
+    auto opus_tags = create_opus_tags();
+    auto page1 = create_ogg_page(0x00, 0, TEST_SERIAL_NUMBER, 1, opus_tags);
     stream.insert(stream.end(), page1.begin(), page1.end());
 
     // Page 2: Audio packet
-    auto opus_packet = createOpusPacket();
-    auto page2 = createOggPage(0x00, OPUS_FRAME_SIZE, TEST_SERIAL_NUMBER, 2, opus_packet);
+    auto opus_packet = create_opus_packet();
+    auto page2 = create_ogg_page(0x00, OPUS_FRAME_SIZE, TEST_SERIAL_NUMBER, 2, opus_packet);
     stream.insert(stream.end(), page2.begin(), page2.end());
 
     printf("Created test stream with:\n");

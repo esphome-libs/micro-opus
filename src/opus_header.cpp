@@ -24,11 +24,11 @@ namespace micro_opus {
 
 namespace {
 // Little-endian helpers for Opus header parsing
-inline uint16_t readLe16(const uint8_t* p) {
+inline uint16_t read_le16(const uint8_t* p) {
     return p[0] | (p[1] << 8);
 }
 
-inline uint32_t readLe32(const uint8_t* p) {
+inline uint32_t read_le32(const uint8_t* p) {
     return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
 }
 
@@ -81,9 +81,9 @@ OpusHeaderResult parse_opus_head(const uint8_t* packet, size_t packet_len, OpusH
     // Parse header fields (offsets relative to end of magic signature)
     head.version = packet[opus_magic_signature_size + 0];
     head.channel_count = packet[opus_magic_signature_size + 1];
-    head.pre_skip = readLe16(packet + opus_magic_signature_size + 2);
-    head.input_sample_rate = readLe32(packet + opus_magic_signature_size + 4);
-    head.output_gain = (int16_t)readLe16(packet + opus_magic_signature_size + 8);
+    head.pre_skip = read_le16(packet + opus_magic_signature_size + 2);
+    head.input_sample_rate = read_le32(packet + opus_magic_signature_size + 4);
+    head.output_gain = (int16_t)read_le16(packet + opus_magic_signature_size + 8);
     head.channel_mapping = packet[opus_magic_signature_size + OPUS_HEAD_CHANNEL_MAPPING_OFFSET];
 
     // Validate version
