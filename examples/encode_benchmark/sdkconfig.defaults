@@ -30,5 +30,5 @@ CONFIG_OPUS_ENABLE_CELT_TIMING=n
 CONFIG_OPUS_ENABLE_PVQ_TIMING=n
 CONFIG_OPUS_ENABLE_QUANT_BANDS_TIMING=n
 
-# Use floating point for ESP32-S3
+# Use fixed-point (faster than floating-point for encoding on ESP32-S3)
 CONFIG_OPUS_FLOATING_POINT=n
