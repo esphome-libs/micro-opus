@@ -66,3 +66,34 @@ jobs:
 
       - name: Run tests
         run: ./build/test_silent_channels
+
+  platformio:
+    name: PlatformIO Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        example: [decode_benchmark, encode_benchmark]
+    steps:
+      - uses: actions/checkout@v4.3.1
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            examples/${{ matrix.example }}/.pio
+          key: pio-${{ matrix.example }}-${{ hashFiles('examples/${{ matrix.example }}/platformio.ini') }}
+          restore-keys: |
+            pio-${{ matrix.example }}-
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build ${{ matrix.example }}
+        run: pio run -d examples/${{ matrix.example }}
