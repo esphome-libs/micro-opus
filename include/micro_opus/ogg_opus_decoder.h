@@ -233,6 +233,13 @@ public:
     uint8_t getChannels() const;
 
     /**
+     * @brief Get the bit depth of decoded samples
+     *
+     * @return Bit depth (always 16 for int16_t output samples)
+     */
+    uint8_t getBitDepth() const;
+
+    /**
      * @brief Get the pre-skip value
      *
      * Pre-skip is the number of samples (at 48kHz) that should be
