@@ -66,6 +66,14 @@ Custom version with Xtensa LX7 optimizations for floating point operations.
 - `mathops_lx7.h` - Optimized floating point operations
 - `pitch_lx7.h` - Optimized fixed point dual inner product
 
+#### silk/ folder
+
+Contains custom SILK codec headers with Xtensa optimizations:
+
+##### silk/xtensa/ folder
+
+- `SigProc_FLP_lx7.h` - Optimized fixed point/floating point conversions
+
 ## Implementation Strategy
 
 ### Memory Allocation (ESP-IDF)
