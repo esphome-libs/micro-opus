@@ -39,12 +39,11 @@ if [ ! -f "${BUILD_DIR}/compile_commands.json" ]; then
     cmake -B "$BUILD_DIR" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON "${ROOT_DIR}/host_examples/opus_to_wav"
 fi
 
-# Find all source files, excluding lib/, build/, .pio/, and opus-staged/ directories
-SOURCES=$(find "$ROOT_DIR/src" "$ROOT_DIR/host_examples" "$ROOT_DIR/examples" \
+# Find all source files, excluding lib/ and build/ directories
+# Note: examples/ excluded as ESP-IDF code can't be checked without ESP-IDF headers
+SOURCES=$(find "$ROOT_DIR/src" "$ROOT_DIR/host_examples" \
     -path '*/build' -prune -o \
     -path '*/lib' -prune -o \
-    -path '*/.pio' -prune -o \
-    -path '*/opus-staged' -prune -o \
     \( -name '*.cpp' -o -name '*.c' \) -print 2>/dev/null || true)
 
 if [ -z "$SOURCES" ]; then
