@@ -82,7 +82,7 @@ OggOpusResult OggOpusDecoder::process_packet(const micro_ogg::OggPacket& packet,
     // RFC 7845 Section 4.1: Validate continued packet flag consistency
     // Only check on first packet of a new page
     if (packets_on_current_page_ == 0) {
-        bool page_has_continued_flag = ogg_demuxer_->currentPageHasContinuedFlag();
+        bool page_has_continued_flag = ogg_demuxer_->current_page_has_continued_flag();
         if (page_has_continued_flag != expect_continued_packet_) {
             return OGG_OPUS_INPUT_INVALID;
         }
@@ -112,7 +112,7 @@ void OggOpusDecoder::update_page_tracking(bool is_last_on_page) {
     packets_on_current_page_++;
     if (is_last_on_page) {
         packets_on_current_page_ = 0;
-        expect_continued_packet_ = ogg_demuxer_->previousPageEndedWithContinuedPacket();
+        expect_continued_packet_ = ogg_demuxer_->previous_page_ended_with_continued_packet();
         previous_packet_was_last_on_page_ = true;
     } else {
         previous_packet_was_last_on_page_ = false;
@@ -477,8 +477,8 @@ void OggOpusDecoder::get_demuxer_debug_state(int& state, bool& assembling, bool&
                                              size_t& packet_size, size_t& body_consumed,
                                              uint8_t& seg_index, uint8_t& seg_count) const {
     if (ogg_demuxer_) {
-        ogg_demuxer_->getDebugState(state, assembling, skipping, packet_size, body_consumed,
-                                    seg_index, seg_count);
+        ogg_demuxer_->get_debug_state(state, assembling, skipping, packet_size, body_consumed,
+                                      seg_index, seg_count);
     } else {
         state = -1;
         assembling = false;
@@ -583,7 +583,7 @@ OggOpusResult OggOpusDecoder::decode(const uint8_t* input, size_t input_len, int
     samples_decoded = 0;
 
     // Get next packet from demuxer
-    micro_ogg::OggDemuxState parse_state = ogg_demuxer_->getNextPacket(input, input_len);
+    micro_ogg::OggDemuxState parse_state = ogg_demuxer_->get_next_packet(input, input_len);
     bytes_consumed = parse_state.bytes_consumed;
 
     // Handle demuxer results
@@ -651,7 +651,7 @@ OggOpusResult OggOpusDecoder::decode(const uint8_t* input, size_t input_len, int
 #ifdef MICRO_OGG_DEMUXER_DEBUG
 void OggOpusDecoder::get_demuxer_stats(size_t& zero_copy_count, size_t& buffered_count) const {
     if (ogg_demuxer_) {
-        ogg_demuxer_->getStats(zero_copy_count, buffered_count);
+        ogg_demuxer_->get_stats(zero_copy_count, buffered_count);
     } else {
         zero_copy_count = 0;
         buffered_count = 0;
@@ -660,7 +660,7 @@ void OggOpusDecoder::get_demuxer_stats(size_t& zero_copy_count, size_t& buffered
 
 void OggOpusDecoder::get_buffer_stats(size_t& current_capacity, size_t& max_capacity) const {
     if (ogg_demuxer_) {
-        ogg_demuxer_->getBufferStats(current_capacity, max_capacity);
+        ogg_demuxer_->get_buffer_stats(current_capacity, max_capacity);
     } else {
         current_capacity = 0;
         max_capacity = 0;
