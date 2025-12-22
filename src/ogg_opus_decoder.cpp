@@ -234,6 +234,22 @@ OggOpusResult OggOpusDecoder::processPacket(const micro_ogg::OggPacket& packet, 
 
         // Calculate max samples we can decode (use actual output channel count)
         uint8_t output_channels = (channels_ != 0) ? channels_ : opus_head_->channel_count;
+
+        // Calculate required buffer size for this packet
+        int samples_per_frame =
+            opus_packet_get_samples_per_frame(packet_data, (opus_int32)sample_rate_);
+        int nb_frames = opus_packet_get_nb_frames(packet_data, (opus_int32)packet_len);
+
+        if (samples_per_frame > 0 && nb_frames > 0) {
+            size_t required_samples = (size_t)samples_per_frame * (size_t)nb_frames;
+            last_required_buffer_bytes_ = required_samples * output_channels * sizeof(int16_t);
+
+            // Check if output buffer is large enough
+            if (output_capacity < required_samples * output_channels) {
+                return OGG_OPUS_OUTPUT_BUFFER_TOO_SMALL;
+            }
+        }
+
         size_t max_samples = output_capacity / output_channels;
         int max_frame_size = (int)std::min(max_samples, (size_t)INT_MAX);
 
@@ -405,6 +421,7 @@ void OggOpusDecoder::reset() {
     samples_decoded_total_ = 0;
     pre_skip_applied_ = false;
     last_granule_position_ = 0;
+    last_required_buffer_bytes_ = 0;
     has_seen_opus_head_ = false;
     has_seen_opus_tags_ = false;
     opus_tags_accumulated_size_ = 0;
@@ -435,6 +452,10 @@ uint16_t OggOpusDecoder::getPreSkip() const {
 int16_t OggOpusDecoder::getOutputGain() const {
     // Only return valid output gain after OpusHead has been parsed
     return (state_ == STATE_DECODING && opus_head_) ? opus_head_->output_gain : 0;
+}
+
+size_t OggOpusDecoder::getRequiredOutputBufferSize() const {
+    return last_required_buffer_bytes_;
 }
 
 #ifdef MICRO_OGG_DEMUXER_DEBUG

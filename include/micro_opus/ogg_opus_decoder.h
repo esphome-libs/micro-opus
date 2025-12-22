@@ -256,6 +256,27 @@ public:
     int16_t getOutputGain() const;
 
     /**
+     * @brief Get the required output buffer size for the last packet
+     *
+     * This method returns the buffer size (in bytes) needed to decode
+     * the most recently processed audio packet. It is particularly useful
+     * after receiving OGG_OPUS_OUTPUT_BUFFER_TOO_SMALL to determine the
+     * correct buffer size to allocate.
+     *
+     * The returned value accounts for:
+     * - Number of samples in the packet (based on frame size and frame count)
+     * - Number of output channels
+     * - Sample size (sizeof(int16_t) = 2 bytes)
+     *
+     * @return Required buffer size in bytes, or 0 if no audio packet has been
+     *         processed yet (i.e., still parsing headers)
+     *
+     * @note This value is updated each time an audio packet is processed,
+     *       regardless of whether decoding succeeded or failed.
+     */
+    size_t getRequiredOutputBufferSize() const;
+
+    /**
      * @brief Check if the OpusHead header has been parsed
      *
      * @return true if header is parsed and decoder is initialized
@@ -343,6 +364,9 @@ private:
 
     // RFC 7845 Section 4: Total size across all continuation pages
     size_t opus_tags_accumulated_size_{0};
+
+    // Required output buffer size for the last audio packet (in bytes)
+    size_t last_required_buffer_bytes_{0};
 
     // RFC 7845 Section 4: First audio data page granule position validation
     // Tracks total samples that complete on the first audio data page
