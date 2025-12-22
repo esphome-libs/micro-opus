@@ -1,0 +1,68 @@
+---
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pre-commit:
+    name: Pre-commit checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.3.1
+
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: '3.12'
+
+      - uses: pre-commit/action@v3.0.1
+
+  lint:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.3.1
+        with:
+          submodules: recursive
+
+      - name: Install clang-tidy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy
+
+      - name: Run clang-tidy
+        run: ./script/clang-tidy.sh
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.3.1
+        with:
+          submodules: recursive
+
+      - name: Configure CMake
+        run: cmake -B build host_examples/opus_to_wav
+
+      - name: Build
+        run: cmake --build build
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.3.1
+        with:
+          submodules: recursive
+
+      - name: Configure CMake with sanitizers
+        run: cmake -B build -DENABLE_SANITIZERS=ON host_examples/opus_to_wav
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Run tests
+        run: ./build/test_silent_channels
