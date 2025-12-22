@@ -282,9 +282,9 @@ int main() {
     printf("Decoding stream...\n");
 
     while (total_consumed < stream.size()) {
-        micro_opus::OggOpusResult result =
-            decoder.decode(stream.data() + total_consumed, stream.size() - total_consumed,
-                           pcm_buffer, sizeof(pcm_buffer), consumed, samples_decoded);
+        micro_opus::OggOpusResult result = decoder.decode(
+            stream.data() + total_consumed, stream.size() - total_consumed,
+            reinterpret_cast<uint8_t*>(pcm_buffer), sizeof(pcm_buffer), consumed, samples_decoded);
 
         total_consumed += consumed;
 

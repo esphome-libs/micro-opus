@@ -162,9 +162,9 @@ static DecodeResult decode_full_file(const uint8_t* audio_data, size_t audio_siz
         // Time this decode call
         int64_t frame_start = esp_timer_get_time();
 
-        micro_opus::OggOpusResult decode_result =
-            decoder.decode(input_ptr, input_remaining, pcm_buffer.data(),
-                           pcm_buffer.size() * sizeof(int16_t), bytes_consumed, samples_decoded);
+        micro_opus::OggOpusResult decode_result = decoder.decode(
+            input_ptr, input_remaining, reinterpret_cast<uint8_t*>(pcm_buffer.data()),
+            pcm_buffer.size() * sizeof(int16_t), bytes_consumed, samples_decoded);
 
         int64_t frame_time = esp_timer_get_time() - frame_start;
 
