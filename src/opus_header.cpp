@@ -35,16 +35,16 @@ inline uint32_t read_le32(const uint8_t* p) {
 // RFC 7845: Opus magic signature lengths
 // Section 5.1: OpusHead begins with "OpusHead" (8 bytes)
 // Section 5.2: OpusTags begins with "OpusTags" (8 bytes)
-const size_t opus_magic_signature_size = 8;
+const size_t OPUS_MAGIC_SIGNATURE_SIZE = 8;
 
 // RFC 7845 Section 5.1: Minimum OpusHead size
 // Must contain: magic(8) + version(1) + channel_count(1) + pre_skip(2) +
 //               input_sample_rate(4) + output_gain(2) + channel_mapping(1) = 19 bytes
-const size_t min_opus_head_size = 19;
+const size_t MIN_OPUS_HEAD_SIZE = 19;
 
 // RFC 7845 Section 5.1.1: Minimum OpusHead size with channel mapping
 // When channel_mapping != 0, need additional: stream_count(1) + coupled_count(1) = 21 bytes
-const size_t min_opus_head_size_with_mapping = 21;
+const size_t MIN_OPUS_HEAD_SIZE_WITH_MAPPING = 21;
 
 // OpusHead field offsets (relative to end of magic signature)
 // RFC 7845 Section 5.1 defines the header layout
@@ -54,17 +54,17 @@ constexpr size_t OPUS_HEAD_COUPLED_COUNT_OFFSET = 12;    // coupled_count field 
 }  // namespace
 
 bool is_opus_head(const uint8_t* packet, size_t packet_len) {
-    if (packet_len < opus_magic_signature_size) {
+    if (packet_len < OPUS_MAGIC_SIGNATURE_SIZE) {
         return false;
     }
-    return memcmp(packet, "OpusHead", opus_magic_signature_size) == 0;
+    return memcmp(packet, "OpusHead", OPUS_MAGIC_SIGNATURE_SIZE) == 0;
 }
 
 bool is_opus_tags(const uint8_t* packet, size_t packet_len) {
-    if (packet_len < opus_magic_signature_size) {
+    if (packet_len < OPUS_MAGIC_SIGNATURE_SIZE) {
         return false;
     }
-    return memcmp(packet, "OpusTags", opus_magic_signature_size) == 0;
+    return memcmp(packet, "OpusTags", OPUS_MAGIC_SIGNATURE_SIZE) == 0;
 }
 
 OpusHeaderResult parse_opus_head(const uint8_t* packet, size_t packet_len, OpusHead& head) {
@@ -74,17 +74,17 @@ OpusHeaderResult parse_opus_head(const uint8_t* packet, size_t packet_len, OpusH
     }
 
     // Minimum header size for channel mapping 0
-    if (packet_len < min_opus_head_size) {
+    if (packet_len < MIN_OPUS_HEAD_SIZE) {
         return OPUS_HEADER_TOO_SHORT;
     }
 
     // Parse header fields (offsets relative to end of magic signature)
-    head.version = packet[opus_magic_signature_size + 0];
-    head.channel_count = packet[opus_magic_signature_size + 1];
-    head.pre_skip = read_le16(packet + opus_magic_signature_size + 2);
-    head.input_sample_rate = read_le32(packet + opus_magic_signature_size + 4);
-    head.output_gain = (int16_t)read_le16(packet + opus_magic_signature_size + 8);
-    head.channel_mapping = packet[opus_magic_signature_size + OPUS_HEAD_CHANNEL_MAPPING_OFFSET];
+    head.version = packet[OPUS_MAGIC_SIGNATURE_SIZE + 0];
+    head.channel_count = packet[OPUS_MAGIC_SIGNATURE_SIZE + 1];
+    head.pre_skip = read_le16(packet + OPUS_MAGIC_SIGNATURE_SIZE + 2);
+    head.input_sample_rate = read_le32(packet + OPUS_MAGIC_SIGNATURE_SIZE + 4);
+    head.output_gain = (int16_t)read_le16(packet + OPUS_MAGIC_SIGNATURE_SIZE + 8);
+    head.channel_mapping = packet[OPUS_MAGIC_SIGNATURE_SIZE + OPUS_HEAD_CHANNEL_MAPPING_OFFSET];
 
     // Validate version
     if (head.version != 1) {
@@ -104,15 +104,15 @@ OpusHeaderResult parse_opus_head(const uint8_t* packet, size_t packet_len, OpusH
     // Parse channel mapping table if needed
     if (head.channel_mapping != 0) {
         // Need additional bytes for channel mapping
-        if (packet_len < min_opus_head_size_with_mapping + head.channel_count) {
+        if (packet_len < MIN_OPUS_HEAD_SIZE_WITH_MAPPING + head.channel_count) {
             return OPUS_HEADER_TOO_SHORT;
         }
 
-        head.stream_count = packet[opus_magic_signature_size + OPUS_HEAD_STREAM_COUNT_OFFSET];
-        head.coupled_count = packet[opus_magic_signature_size + OPUS_HEAD_COUPLED_COUNT_OFFSET];
+        head.stream_count = packet[OPUS_MAGIC_SIGNATURE_SIZE + OPUS_HEAD_STREAM_COUNT_OFFSET];
+        head.coupled_count = packet[OPUS_MAGIC_SIGNATURE_SIZE + OPUS_HEAD_COUPLED_COUNT_OFFSET];
 
         // Copy channel mapping table
-        memcpy(head.channel_mapping_table, packet + min_opus_head_size_with_mapping,
+        memcpy(head.channel_mapping_table, packet + MIN_OPUS_HEAD_SIZE_WITH_MAPPING,
                head.channel_count);
 
         // RFC 7845 Section 5.1.1: Validate channel mapping table indices

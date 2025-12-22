@@ -56,17 +56,17 @@ constexpr uint32_t OPUS_SAMPLE_RATE_48K = 48000;  // Native Opus rate
 // RFC 7845 Section 3: Opus packet sizes
 // "Demuxers SHOULD treat audio packets > 61,440 octets as invalid"
 // Typical packets at 128kbps/20ms are ~320 bytes, so start small and grow as needed
-const size_t min_opus_packet_size = 1024;   // Initial buffer allocation
-const size_t max_opus_packet_size = 61440;  // Maximum per RFC 7845
+const size_t MIN_OPUS_PACKET_SIZE = 1024;   // Initial buffer allocation
+const size_t MAX_OPUS_PACKET_SIZE = 61440;  // Maximum per RFC 7845
 
 // RFC 7845 Section 5.2: Maximum OpusTags size
 // "OpusTags MUST NOT exceed 125,829,120 octets (120 MB)"
 // This prevents memory exhaustion attacks
-const size_t max_opus_tags_size = 125829120;
+const size_t MAX_OPUS_TAGS_SIZE = 125829120;
 
 // RFC 7845 Section 5.2: Minimum OpusTags size
 // Must contain: magic(8) + vendor_length(4) + user_comment_count(4) = 16 bytes
-const size_t min_opus_tags_size = 16;
+const size_t MIN_OPUS_TAGS_SIZE = 16;
 }  // namespace
 
 OggOpusResult OggOpusDecoder::process_packet(const micro_ogg::OggPacket& packet, int16_t* output,
@@ -241,12 +241,12 @@ OggOpusResult OggOpusDecoder::handle_opus_tags_packet(const uint8_t* packet_data
 
     // RFC 7845 Section 5.2: OpusTags MUST NOT exceed 125,829,120 octets
     opus_tags_accumulated_size_ += packet_len;
-    if (opus_tags_accumulated_size_ > max_opus_tags_size) {
+    if (opus_tags_accumulated_size_ > MAX_OPUS_TAGS_SIZE) {
         return OGG_OPUS_INPUT_INVALID;
     }
 
     // RFC 7845 Section 5.2: Minimum OpusTags size validation
-    if (packet_len < min_opus_tags_size) {
+    if (packet_len < MIN_OPUS_TAGS_SIZE) {
         return OGG_OPUS_INPUT_INVALID;
     }
 
@@ -281,7 +281,7 @@ OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, si
     }
 
     // RFC 7845 Section 3: Audio data packets SHOULD NOT exceed 61,440 octets
-    if (packet_len > max_opus_packet_size) {
+    if (packet_len > MAX_OPUS_PACKET_SIZE) {
         return OGG_OPUS_INPUT_INVALID;
     }
 
@@ -526,8 +526,8 @@ OggOpusResult OggOpusDecoder::decode(const uint8_t* input, size_t input_len, int
         // RFC 7845 Section 3: Typical Opus packets are ~320 bytes
         // Maximum packet size is 61,440 octets per RFC 7845
         micro_ogg::OggDemuxerConfig ogg_config;
-        ogg_config.min_buffer_size = min_opus_packet_size;
-        ogg_config.max_buffer_size = max_opus_packet_size;
+        ogg_config.min_buffer_size = MIN_OPUS_PACKET_SIZE;
+        ogg_config.max_buffer_size = MAX_OPUS_PACKET_SIZE;
         ogg_config.enable_crc = enable_crc_;
 
 #ifdef ESP_PLATFORM
