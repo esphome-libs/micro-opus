@@ -43,7 +43,7 @@ Each memory type can be configured independently with four placement options:
 
 | Memory Type | Size | Notes |
 | ----------- | ---- | ----- |
-| State/Tables | ~30-50KB per instance | Encoder/decoder state, mode tables, FFT twiddles |
+| State | ~30-50KB per instance | Encoder/decoder state |
 | Pseudostack | 120KB+ per thread | Working memory, heavily accessed during encode/decode |
 | OggOpus buffers | 1-61KB | Ogg demuxer (most packets use zero-copy) |
 
@@ -135,6 +135,8 @@ void opus_encode_example(const int16_t *pcm_data, int frame_size) {
 }
 ```
 
+See the [encode benchmark example](examples/encode_benchmark) for a complete working example along with performance data across different complexity levels and bitrates.
+
 ### Ogg Opus Decoding (C++)
 
 The `OggOpusDecoder` is a portable C++ wrapper that works on any platform, not just ESP32. It can be used with the unmodified upstream Opus library and provides efficient streaming decode with zero-copy optimization via [micro-ogg-demuxer](https://github.com/esphome-libs/micro-ogg-demuxer).
@@ -206,7 +208,9 @@ Performance varies with bitrate, complexity, sample rate, and cache configuratio
 
 ### Fixed-Point vs Floating-Point
 
-CELT (music) takes roughly 4x more CPU than SILK (speech) to decode. ESP32 and ESP32-S3 default to floating-point, which is ~5% faster for CELT. However, fixed-point is ~23% faster for SILK. If your application primarily decodes speech, consider enabling fixed-point mode in menuconfig.
+**Decoding**: CELT (music) takes roughly 4x more CPU than SILK (speech) to decode. ESP32 and ESP32-S3 default to floating-point, which is ~5% faster for CELT. However, fixed-point is ~23% faster for SILK. If your application primarily decodes speech, consider enabling fixed-point mode in menuconfig.
+
+**Encoding**: Fixed-point is strongly recommended for encoding on ESP32-S3. SILK encoding with floating-point is 4-6x slower than fixed-point and fails to achieve real-time at even the lowest complexity settings. CELT encoding is only ~10-40% slower with floating-point. See the [encode benchmark](examples/encode_benchmark) for detailed performance comparisons.
 
 ## Xtensa DSP Instructions
 
