@@ -53,23 +53,23 @@ constexpr size_t OPUS_HEAD_STREAM_COUNT_OFFSET = 11;     // stream_count field (
 constexpr size_t OPUS_HEAD_COUPLED_COUNT_OFFSET = 12;    // coupled_count field (if mapping != 0)
 }  // namespace
 
-bool isOpusHead(const uint8_t* packet, size_t packet_len) {
+bool is_opus_head(const uint8_t* packet, size_t packet_len) {
     if (packet_len < opus_magic_signature_size) {
         return false;
     }
     return memcmp(packet, "OpusHead", opus_magic_signature_size) == 0;
 }
 
-bool isOpusTags(const uint8_t* packet, size_t packet_len) {
+bool is_opus_tags(const uint8_t* packet, size_t packet_len) {
     if (packet_len < opus_magic_signature_size) {
         return false;
     }
     return memcmp(packet, "OpusTags", opus_magic_signature_size) == 0;
 }
 
-OpusHeaderResult parseOpusHead(const uint8_t* packet, size_t packet_len, OpusHead& head) {
+OpusHeaderResult parse_opus_head(const uint8_t* packet, size_t packet_len, OpusHead& head) {
     // Check magic signature
-    if (!isOpusHead(packet, packet_len)) {
+    if (!is_opus_head(packet, packet_len)) {
         return OPUS_HEADER_INVALID_MAGIC;
     }
 

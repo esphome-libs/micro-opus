@@ -90,7 +90,7 @@ OggOpusResult OggOpusDecoder::process_packet(const micro_ogg::OggPacket& packet,
 
     if (state_ == STATE_EXPECT_OPUS_HEAD) {
         // First packet should be OpusHead and must have BOS flag
-        if (!is_bos || !isOpusHead(packet_data, packet_len)) {
+        if (!is_bos || !is_opus_head(packet_data, packet_len)) {
             return OGG_OPUS_INPUT_INVALID;
         }
 
@@ -120,7 +120,7 @@ OggOpusResult OggOpusDecoder::process_packet(const micro_ogg::OggPacket& packet,
             opus_head_ = std::make_unique<OpusHead>();
         }
 
-        OpusHeaderResult header_result = parseOpusHead(packet_data, packet_len, *opus_head_);
+        OpusHeaderResult header_result = parse_opus_head(packet_data, packet_len, *opus_head_);
 
         if (header_result != OPUS_HEADER_OK) {
             return OGG_OPUS_INPUT_INVALID;
@@ -168,7 +168,7 @@ OggOpusResult OggOpusDecoder::process_packet(const micro_ogg::OggPacket& packet,
 
     if (state_ == STATE_EXPECT_OPUS_TAGS) {
         // Second packet should be OpusTags
-        if (!isOpusTags(packet_data, packet_len)) {
+        if (!is_opus_tags(packet_data, packet_len)) {
             return OGG_OPUS_INPUT_INVALID;
         }
 
