@@ -131,7 +131,7 @@ function(opus_apply_patch STAGED_DIR PATCH_FILE)
     if(NOT EXISTS "${MARKER_FILE}")
         # Apply the patch
         execute_process(
-            COMMAND patch -p1 -i "${FULL_PATCH_PATH}"
+            COMMAND patch --binary -p1 -i "${FULL_PATCH_PATH}"
             WORKING_DIRECTORY "${STAGED_DIR}"
             RESULT_VARIABLE PATCH_RESULT
             OUTPUT_VARIABLE PATCH_OUTPUT
