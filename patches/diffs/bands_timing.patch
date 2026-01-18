@@ -1,29 +1,29 @@
---- a/celt/bands.c	2025-07-30 08:42:36
-+++ b/celt/bands.c	2025-10-19 11:42:01
-@@ -42,6 +42,13 @@
- #include "rate.h"
+--- a/b/celt/bands.c	2026-01-18 10:55:59
++++ b/celt/bands.c	2026-01-18 10:59:09
+@@ -43,6 +43,13 @@
  #include "quant_bands.h"
  #include "pitch.h"
-+
+
 +#ifdef CONFIG_OPUS_ENABLE_QUANT_BANDS_TIMING
 +#include "quant_bands_timing.h"
 +
 +/* Define the global timing statistics variable */
 +quant_bands_timing_stats_t g_quant_bands_timing = {0};
 +#endif
-
++
  int hysteresis_decision(opus_val16 val, const opus_val16 *thresholds, const opus_val16 *hysteresis, int N, int prev)
  {
-@@ -972,6 +979,8 @@
+    int i;
+@@ -989,6 +996,8 @@
+    int i;
     int spread;
     ec_ctx *ec;
-
-+   QUANT_BANDS_TIMING_ENTER_RECURSION();
 +
++   QUANT_BANDS_TIMING_ENTER_RECURSION();
+
     encode = ctx->encode;
     m = ctx->m;
-    i = ctx->i;
-@@ -982,6 +991,7 @@
+@@ -1000,6 +1009,7 @@
     cache = m->cache.bits + m->cache.index[(LM+1)*m->nbEBands+i];
     if (LM != -1 && b > cache[cache[0]]+12 && N>2)
     {
@@ -31,39 +31,44 @@
        int mbits, sbits, delta;
        int itheta;
        int qalloc;
-@@ -996,7 +1006,9 @@
+@@ -1014,7 +1024,9 @@
           fill = (fill&1)|(fill<<1);
        B = (B+1)>>1;
 
 +      QUANT_BANDS_TIMING_COMPUTE_THETA_START();
-       compute_theta(ctx, &sctx, X, Y, N, &b, B, B0, LM, 0, &fill);
+       compute_theta(ctx, &sctx, X, Y, N, &b, B, B0, LM, 0, &fill ARG_QEXT(&ext_b));
 +      QUANT_BANDS_TIMING_COMPUTE_THETA_END();
        imid = sctx.imid;
        iside = sctx.iside;
        delta = sctx.delta;
-@@ -1047,6 +1059,7 @@
-                MULT32_32_Q31(gain,mid), fill);
+@@ -1079,6 +1091,7 @@
+                MULT32_32_Q31(gain,mid), fill ARG_QEXT(ext_b/2));
        }
     } else {
 +      QUANT_BANDS_TIMING_COUNT_BASE_PATH();
-       /* This is the basic no-split case */
-       q = bits2pulses(m, i, LM, b);
-       curr_bits = pulses2bits(m, i, LM, q);
-@@ -1070,10 +1083,13 @@
-          {
-             cm = alg_quant(X, N, K, spread, B, ec, gain, ctx->resynth, ctx->arch);
+ #ifdef ENABLE_QEXT
+       int extra_bits;
+       int ext_remaining_bits;
+@@ -1115,8 +1128,10 @@
+                            ARG_QEXT(ctx->ext_ec) ARG_QEXT(extra_bits),
+                            ctx->arch);
           } else {
 +            QUANT_BANDS_TIMING_ALG_UNQUANT_START();
-             cm = alg_unquant(X, N, K, spread, B, ec, gain);
+             cm = alg_unquant(X, N, K, spread, B, ec, gain
+                              ARG_QEXT(ctx->ext_ec) ARG_QEXT(extra_bits));
 +            QUANT_BANDS_TIMING_ALG_UNQUANT_END();
           }
+ #ifdef ENABLE_QEXT
+       } else if (ext_b > 2*N<<BITRES)
+@@ -1133,6 +1148,7 @@
+ #endif
        } else {
           /* If there's no pulse, fill the band anyway */
 +         QUANT_BANDS_TIMING_FILL_START();
           int j;
           if (ctx->resynth)
           {
-@@ -1111,9 +1127,11 @@
+@@ -1170,9 +1186,11 @@
                 renormalise_vector(X, N, gain, ctx->arch);
              }
           }
@@ -75,7 +80,7 @@
     return cm;
  }
 
-@@ -1192,20 +1210,29 @@
+@@ -1319,10 +1337,12 @@
     /* Reorganize the samples in time order instead of frequency order */
     if (B0>1)
     {
@@ -87,9 +92,15 @@
 +      QUANT_BANDS_TIMING_DEINTERLEAVE_END();
     }
 
-+   QUANT_BANDS_TIMING_PARTITION_START();
-    cm = quant_partition(ctx, X, N, b, B, lowband, LM, gain, fill);
-+   QUANT_BANDS_TIMING_PARTITION_END();
+ #ifdef ENABLE_QEXT
+@@ -1331,15 +1351,22 @@
+    } else
+ #endif
+    {
++      QUANT_BANDS_TIMING_PARTITION_START();
+       cm = quant_partition(ctx, X, N, b, B, lowband, LM, gain, fill ARG_QEXT(ext_b));
++      QUANT_BANDS_TIMING_PARTITION_END();
+    }
 
     /* This code is used by the decoder and by the resynthesis-enabled encoder */
     if (ctx->resynth)
@@ -105,24 +116,24 @@
 
        /* Undo time-freq changes that we did earlier */
        N_B = N_B0;
-@@ -1239,6 +1266,7 @@
-             lowband_out[j] = MULT16_16_Q15(n,X[j]);
+@@ -1373,6 +1400,7 @@
+             lowband_out[j] = MULT16_32_Q15(n,X[j]);
        }
        cm &= (1<<B)-1;
 +      QUANT_BANDS_TIMING_RESYNTH_END();
     }
     return cm;
  }
-@@ -1426,6 +1454,7 @@
-       opus_int32 balance, ec_ctx *ec, int LM, int codedBands,
-       opus_uint32 *seed, int complexity, int arch, int disable_inv)
+@@ -1595,6 +1623,7 @@
+       ARG_QEXT(ec_ctx *ext_ec) ARG_QEXT(int *extra_pulses)
+       ARG_QEXT(opus_int32 ext_total_bits) ARG_QEXT(const int *cap))
  {
 +   QUANT_BANDS_TIMING_START();
     int i;
     opus_int32 remaining_bits;
     const opus_int16 * OPUS_RESTRICT eBands = m->eBands;
-@@ -1495,6 +1524,9 @@
-    ctx.theta_round = 0;
+@@ -1680,6 +1709,9 @@
+
     /* Avoid injecting noise in the first band on transients. */
     ctx.avoid_split_noise = B > 1;
 +
@@ -131,103 +142,7 @@
     for (i=start;i<end;i++)
     {
        opus_int32 tell;
-@@ -1595,12 +1627,16 @@
-       }
-       if (dual_stereo)
-       {
-+         QUANT_BANDS_TIMING_QUANT_BAND_START();
-          x_cm = quant_band(&ctx, X, N, b/2, B,
-                effective_lowband != -1 ? norm+effective_lowband : NULL, LM,
-                last?NULL:norm+M*eBands[i]-norm_offset, Q31ONE, lowband_scratch, x_cm);
-+         QUANT_BANDS_TIMING_QUANT_BAND_END();
-+         QUANT_BANDS_TIMING_QUANT_BAND_START();
-          y_cm = quant_band(&ctx, Y, N, b/2, B,
-                effective_lowband != -1 ? norm2+effective_lowband : NULL, LM,
-                last?NULL:norm2+M*eBands[i]-norm_offset, Q31ONE, lowband_scratch, y_cm);
-+         QUANT_BANDS_TIMING_QUANT_BAND_END();
-       } else {
-          if (Y!=NULL)
-          {
-@@ -1619,19 +1655,24 @@
-                cm = x_cm|y_cm;
-                ec_save = *ec;
-                ctx_save = ctx;
-+               QUANT_BANDS_TIMING_OPUS_COPY_START();
-                OPUS_COPY(X_save, X, N);
-                OPUS_COPY(Y_save, Y, N);
-+               QUANT_BANDS_TIMING_OPUS_COPY_END();
-                /* Encode and round down. */
-                ctx.theta_round = -1;
-+               QUANT_BANDS_TIMING_QUANT_BAND_STEREO_START();
-                x_cm = quant_band_stereo(&ctx, X, Y, N, b, B,
-                      effective_lowband != -1 ? norm+effective_lowband : NULL, LM,
-                      last?NULL:norm+M*eBands[i]-norm_offset, lowband_scratch, cm);
-+               QUANT_BANDS_TIMING_QUANT_BAND_STEREO_END();
-                dist0 = MULT16_32_Q15(w[0], celt_inner_prod(X_save, X, N, arch)) + MULT16_32_Q15(w[1], celt_inner_prod(Y_save, Y, N, arch));
-
-                /* Save first result. */
-                cm2 = x_cm;
-                ec_save2 = *ec;
-                ctx_save2 = ctx;
-+               QUANT_BANDS_TIMING_OPUS_COPY_START();
-                OPUS_COPY(X_save2, X, N);
-                OPUS_COPY(Y_save2, Y, N);
-                if (!last)
-@@ -1641,42 +1682,53 @@
-                bytes_buf = ec_save.buf+nstart_bytes;
-                save_bytes = nend_bytes-nstart_bytes;
-                OPUS_COPY(bytes_save, bytes_buf, save_bytes);
-+               QUANT_BANDS_TIMING_OPUS_COPY_END();
-
-                /* Restore */
-                *ec = ec_save;
-                ctx = ctx_save;
-+               QUANT_BANDS_TIMING_OPUS_COPY_START();
-                OPUS_COPY(X, X_save, N);
-                OPUS_COPY(Y, Y_save, N);
-+               QUANT_BANDS_TIMING_OPUS_COPY_END();
- #ifndef DISABLE_UPDATE_DRAFT
-                if (i == start+1)
-                   special_hybrid_folding(m, norm, norm2, start, M, dual_stereo);
- #endif
-                /* Encode and round up. */
-                ctx.theta_round = 1;
-+               QUANT_BANDS_TIMING_QUANT_BAND_STEREO_START();
-                x_cm = quant_band_stereo(&ctx, X, Y, N, b, B,
-                      effective_lowband != -1 ? norm+effective_lowband : NULL, LM,
-                      last?NULL:norm+M*eBands[i]-norm_offset, lowband_scratch, cm);
-+               QUANT_BANDS_TIMING_QUANT_BAND_STEREO_END();
-                dist1 = MULT16_32_Q15(w[0], celt_inner_prod(X_save, X, N, arch)) + MULT16_32_Q15(w[1], celt_inner_prod(Y_save, Y, N, arch));
-                if (dist0 >= dist1) {
-                   x_cm = cm2;
-                   *ec = ec_save2;
-                   ctx = ctx_save2;
-+                  QUANT_BANDS_TIMING_OPUS_COPY_START();
-                   OPUS_COPY(X, X_save2, N);
-                   OPUS_COPY(Y, Y_save2, N);
-                   if (!last)
-                      OPUS_COPY(norm+M*eBands[i]-norm_offset, norm_save2, N);
-                   OPUS_COPY(bytes_buf, bytes_save, save_bytes);
-+                  QUANT_BANDS_TIMING_OPUS_COPY_END();
-                }
-             } else {
-                ctx.theta_round = 0;
-+               QUANT_BANDS_TIMING_QUANT_BAND_STEREO_START();
-                x_cm = quant_band_stereo(&ctx, X, Y, N, b, B,
-                      effective_lowband != -1 ? norm+effective_lowband : NULL, LM,
-                      last?NULL:norm+M*eBands[i]-norm_offset, lowband_scratch, x_cm|y_cm);
-+               QUANT_BANDS_TIMING_QUANT_BAND_STEREO_END();
-             }
-          } else {
-+            QUANT_BANDS_TIMING_QUANT_BAND_START();
-             x_cm = quant_band(&ctx, X, N, b, B,
-                   effective_lowband != -1 ? norm+effective_lowband : NULL, LM,
-                   last?NULL:norm+M*eBands[i]-norm_offset, Q31ONE, lowband_scratch, x_cm|y_cm);
-+            QUANT_BANDS_TIMING_QUANT_BAND_END();
-          }
-          y_cm = x_cm;
-       }
-@@ -1692,5 +1744,8 @@
+@@ -1918,5 +1950,8 @@
     }
     *seed = ctx.seed;
 

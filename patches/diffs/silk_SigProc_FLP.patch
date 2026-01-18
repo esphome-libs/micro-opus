@@ -1,6 +1,6 @@
 --- a/silk/float/SigProc_FLP.h
 +++ b/silk/float/SigProc_FLP.h
-@@ -196,6 +196,10 @@
+@@ -194,4 +194,8 @@ static OPUS_INLINE silk_float silk_log2( double x )
      return ( silk_float )( 3.32192809488736 * log10( x ) );
  }
 
@@ -8,6 +8,4 @@
 +#include "xtensa/SigProc_FLP_lx7.h"
 +#endif
 +
- #ifdef  __cplusplus
- }
- #endif
+ #endif /* SILK_SIGPROC_FLP_H */

@@ -1,5 +1,5 @@
---- a/celt/celt_decoder.c	2025-09-03 18:10:14
-+++ b/celt/celt_decoder.c	2025-10-18 17:59:19
+--- a/celt/celt_decoder.c
++++ b/celt/celt_decoder.c
 @@ -32,6 +32,8 @@
  #endif
 
@@ -9,19 +9,20 @@
 
  #include "cpu_support.h"
  #include "os_support.h"
-@@ -1013,6 +1015,11 @@
-    celt_glog max_background_increase;
+@@ -1166,6 +1168,12 @@ int celt_decode_with_ec(CELTDecoder * OPUS_RESTRICT st, const unsigned char *dat
+ # define qext_bytes 0
+ #endif
     ALLOC_STACK;
-
++
 +#ifdef CONFIG_OPUS_ENABLE_CELT_TIMING
 +   int64_t _timing_total_start = celt_timing_get_time();
 +   int64_t _timing_stage_start = 0;
 +#endif
 +
-    VALIDATE_CELT_DECODER(st);
-    mode = st->mode;
-    nbEBands = mode->nbEBands;
-@@ -1138,6 +1145,10 @@
+ #ifdef ENABLE_QEXT
+    qext_scale = st->qext_scale;
+ #endif
+@@ -1311,6 +1319,10 @@ int celt_decode_with_ec(CELTDecoder * OPUS_RESTRICT st, const unsigned char *dat
     total_bits = len*8;
     tell = ec_tell(dec);
 
@@ -32,20 +33,20 @@
     if (tell >= total_bits)
        silence = 1;
     else if (tell==1)
-@@ -1281,6 +1292,10 @@
+@@ -1453,6 +1465,10 @@ int celt_decode_with_ec(CELTDecoder * OPUS_RESTRICT st, const unsigned char *dat
 
-    unquant_fine_energy(mode, start, end, oldBandE, fine_quant, dec, C);
+    unquant_fine_energy(mode, start, end, oldBandE, NULL, fine_quant, dec, C);
 
 +#ifdef CONFIG_OPUS_ENABLE_CELT_TIMING
 +   g_celt_timing.entropy_decode_time += (celt_timing_get_time() - _timing_stage_start);
 +#endif
 +
-    c=0; do {
-       OPUS_MOVE(decode_mem[c], decode_mem[c]+N, DECODE_BUFFER_SIZE-N+overlap);
-    } while (++c<CC);
-@@ -1290,10 +1305,19 @@
-
     ALLOC(X, C*N, celt_norm);   /**< Interleaved normalised MDCTs */
+
+ #ifdef ENABLE_QEXT
+@@ -1484,6 +1500,10 @@ int celt_decode_with_ec(CELTDecoder * OPUS_RESTRICT st, const unsigned char *dat
+    /* Decode fixed codebook */
+    ALLOC(collapse_masks, C*nbEBands, unsigned char);
 
 +#ifdef CONFIG_OPUS_ENABLE_CELT_TIMING
 +   _timing_stage_start = celt_timing_get_time();
@@ -54,30 +55,33 @@
     quant_all_bands(0, mode, start, end, X, C==2 ? X+N : NULL, collapse_masks,
           NULL, pulses, shortBlocks, spread_decision, dual_stereo, intensity, tf_res,
           len*(8<<BITRES)-anti_collapse_rsv, balance, dec, LM, codedBands, &st->rng, 0,
-          st->arch, st->disable_inv);
-+
+@@ -1491,6 +1511,11 @@ int celt_decode_with_ec(CELTDecoder * OPUS_RESTRICT st, const unsigned char *dat
+          ARG_QEXT(&ext_dec) ARG_QEXT(extra_pulses)
+          ARG_QEXT(qext_bytes*(8<<BITRES)) ARG_QEXT(cap));
+
 +#ifdef CONFIG_OPUS_ENABLE_CELT_TIMING
 +   g_celt_timing.pvq_decode_time += (celt_timing_get_time() - _timing_stage_start);
 +   _timing_stage_start = celt_timing_get_time();
 +#endif
-
-    if (anti_collapse_rsv > 0)
-    {
-@@ -1307,6 +1331,11 @@
++
+ #ifdef ENABLE_QEXT
+    if (qext_mode) {
+       VARDECL(int, zeros);
+@@ -1522,6 +1547,11 @@ int celt_decode_with_ec(CELTDecoder * OPUS_RESTRICT st, const unsigned char *dat
+    if (anti_collapse_on)
        anti_collapse(mode, X, collapse_masks, LM, C, N,
              start, end, oldBandE, oldLogE, oldLogE2, pulses, st->rng, 0, st->arch);
-
++
 +#ifdef CONFIG_OPUS_ENABLE_CELT_TIMING
 +   g_celt_timing.energy_finalize_time += (celt_timing_get_time() - _timing_stage_start);
 +   _timing_stage_start = celt_timing_get_time();
 +#endif
-+
+
     if (silence)
     {
-       for (i=0;i<C*nbEBands;i++)
-@@ -1318,6 +1347,11 @@
+@@ -1534,6 +1564,11 @@ int celt_decode_with_ec(CELTDecoder * OPUS_RESTRICT st, const unsigned char *dat
     celt_synthesis(mode, X, out_syn, oldBandE, start, effEnd,
-                   C, CC, isTransient, LM, st->downsample, silence, st->arch);
+                   C, CC, isTransient, LM, st->downsample, silence, st->arch ARG_QEXT(qext_mode) ARG_QEXT(st->qext_oldBandE) ARG_QEXT(qext_end));
 
 +#ifdef CONFIG_OPUS_ENABLE_CELT_TIMING
 +   g_celt_timing.synthesis_time += (celt_timing_get_time() - _timing_stage_start);
@@ -87,16 +91,15 @@
     c=0; do {
        st->postfilter_period=IMAX(st->postfilter_period, COMBFILTER_MINPERIOD);
        st->postfilter_period_old=IMAX(st->postfilter_period_old, COMBFILTER_MINPERIOD);
-@@ -1375,8 +1409,20 @@
-       }
-    } while (++c<2);
-    st->rng = dec->rng;
-+
+@@ -1595,7 +1630,18 @@ int celt_decode_with_ec(CELTDecoder * OPUS_RESTRICT st, const unsigned char *dat
+    if (qext_bytes) st->rng = st->rng ^ ext_dec.rng;
+ #endif
+
 +#ifdef CONFIG_OPUS_ENABLE_CELT_TIMING
 +   g_celt_timing.postfilter_time += (celt_timing_get_time() - _timing_stage_start);
 +   _timing_stage_start = celt_timing_get_time();
 +#endif
-
++
     deemphasis(out_syn, pcm, N, CC, st->downsample, mode->preemph, st->preemph_memD, accum);
 +
 +#ifdef CONFIG_OPUS_ENABLE_CELT_TIMING
@@ -104,7 +107,6 @@
 +   g_celt_timing.total_time += (celt_timing_get_time() - _timing_total_start);
 +   CELT_TIMING_PRINT(200);
 +#endif
-+
     st->loss_duration = 0;
-    st->prefilter_and_fold = 0;
-    RESTORE_STACK;
+    st->plc_duration = 0;
+    st->last_frame_type = FRAME_NORMAL;

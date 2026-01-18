@@ -1,5 +1,5 @@
---- a/celt/vq.c	2025-12-02 08:05:08
-+++ b/celt/vq.c	2025-10-20 13:44:15
+--- a/b/celt/vq.c	2026-01-18 10:51:37
++++ b/celt/vq.c	2026-01-18 10:54:41
 @@ -35,6 +35,8 @@
  #include "vq.h"
  #include "arch.h"
@@ -9,7 +9,7 @@
  #include "bands.h"
  #include "rate.h"
  #include "pitch.h"
-@@ -82,14 +84,20 @@
+@@ -112,14 +114,20 @@
 
     if (2*K>=len || spread==SPREAD_NONE)
        return;
@@ -30,7 +30,7 @@
     if (len>=8*stride)
     {
        stride2 = 1;
-@@ -98,9 +106,13 @@
+@@ -128,9 +136,13 @@
        while ((stride2*stride2+stride2)*stride + (stride>>2) < len)
           stride2++;
     }
@@ -44,15 +44,15 @@
     for (i=0;i<stride;i++)
     {
        if (dir < 0)
-@@ -114,6 +126,7 @@
+@@ -144,6 +156,7 @@
              exp_rotation1(X+i*len, len, stride2, s, -c);
        }
     }
 +   QUANT_BANDS_TIMING_EXP_ROTATION_LOOP_END();
  }
 
- /** Takes the pitch vector and the decoded residual vector, computes the gain
-@@ -371,9 +384,19 @@
+ /** Normalizes the decoded integer pvq codeword to unit norm. */
+@@ -629,7 +642,11 @@
     celt_assert2(K>0, "alg_unquant() needs at least one pulse");
     celt_assert2(N>1, "alg_unquant() needs at least two dimensions");
     ALLOC(iy, N, int);
@@ -61,8 +61,15 @@
     Ryy = decode_pulses(iy, N, K, dec);
 +   QUANT_BANDS_TIMING_DECODE_PULSES_END();
 +
+ #ifdef ENABLE_QEXT
+    if (N==2 && extra_bits >= 2) {
+       int up;
+@@ -682,8 +699,14 @@
+ #endif
+    }
+ #endif
 +   QUANT_BANDS_TIMING_NORMALISE_START();
-    normalise_residual(iy, X, N, Ryy, gain);
+    normalise_residual(iy, X, N, Ryy, gain, yy_shift);
 +   QUANT_BANDS_TIMING_NORMALISE_END();
 +
 +   QUANT_BANDS_TIMING_EXP_ROTATION_START();

@@ -1,5 +1,5 @@
---- a/celt/vq.c	2025-12-02 08:05:08
-+++ b/celt/vq.c	2025-10-19 06:29:23
+--- a/celt/vq.c	2026-01-18 11:13:12
++++ b/celt/vq.c	2026-01-18 11:13:49
 @@ -30,6 +30,8 @@
  #include "config.h"
  #endif
@@ -9,7 +9,7 @@
  #include "mathops.h"
  #include "cwrs.h"
  #include "vq.h"
-@@ -105,13 +107,23 @@
+@@ -135,13 +137,23 @@
     {
        if (dir < 0)
        {
@@ -35,23 +35,27 @@
        }
     }
  }
-@@ -367,14 +379,32 @@
-    unsigned collapse_mask;
-    VARDECL(int, iy);
+@@ -626,10 +638,14 @@
+    int yy_shift=0;
     SAVE_STACK;
-+
-+   PVQ_TIMING_START();
 
++   PVQ_TIMING_START();
++
     celt_assert2(K>0, "alg_unquant() needs at least one pulse");
     celt_assert2(N>1, "alg_unquant() needs at least two dimensions");
     ALLOC(iy, N, int);
-+
 +   PVQ_TIMING_START_STAGE();
     Ryy = decode_pulses(iy, N, K, dec);
 +   PVQ_TIMING_END(decode_pulses_time);
-+
+ #ifdef ENABLE_QEXT
+    if (N==2 && extra_bits >= 2) {
+       int up;
+@@ -682,9 +698,21 @@
+ #endif
+    }
+ #endif
 +   PVQ_TIMING_START_STAGE();
-    normalise_residual(iy, X, N, Ryy, gain);
+    normalise_residual(iy, X, N, Ryy, gain, yy_shift);
 +   PVQ_TIMING_END(normalise_residual_time);
 +
 +   PVQ_TIMING_START_STAGE();
