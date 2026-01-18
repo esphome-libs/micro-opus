@@ -199,16 +199,16 @@ See [examples/decode_benchmark](examples/decode_benchmark) for multi-threaded us
 
 ## Performance
 
-ESP32-S3 @ 240MHz, 48kHz stereo:
+ESP32-S3 @ 240MHz, 48kHz stereo, overall CPU load (dual-core):
 
-- CELT decode: ~9% CPU
-- SILK decode: ~3% CPU
+- CELT decode: ~8% CPU (floating-point) / ~9% CPU (fixed-point)
+- SILK decode: ~2% CPU (floating-point) / ~2% CPU (fixed-point)
 
 Performance varies with bitrate, complexity, sample rate, and cache configuration.
 
 ### Fixed-Point vs Floating-Point
 
-**Decoding**: CELT (music) takes roughly 4x more CPU than SILK (speech) to decode. ESP32 and ESP32-S3 default to floating-point, which is ~5% faster for CELT. However, fixed-point is ~23% faster for SILK. If your application primarily decodes speech, consider enabling fixed-point mode in menuconfig.
+**Decoding**: CELT (music) takes roughly 4x more CPU than SILK (speech) to decode. ESP32 and ESP32-S3 default to floating-point, which is ~9% faster for CELT with a single decode task. However, fixed-point is ~22% faster for SILK. With multiple concurrent decode tasks, fixed-point becomes faster for CELT as well due to FPU contention. Consider fixed-point mode for speech-only applications or when running multiple concurrent decoders.
 
 **Encoding**: Fixed-point is strongly recommended for encoding on ESP32-S3. SILK encoding with floating-point is 4-6x slower than fixed-point and fails to achieve real-time at even the lowest complexity settings. CELT encoding is only ~10-40% slower with floating-point. See the [encode benchmark](examples/encode_benchmark) for detailed performance comparisons.
 

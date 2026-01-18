@@ -72,31 +72,31 @@ Navigate to **Component config → Opus Audio Codec** to adjust:
 Each iteration tests both audio types (MUSIC and SPEECH) with 1, 2, 3, and 4 concurrent tasks:
 
 ```text
-I (1041) DECODE_BENCH: --- MUSIC (CELT) - 1 concurrent task ---
-I (5851) DECODE_BENCH: Task 0 finished (4798 ms)
-I (5851) DECODE_BENCH: Task 0: Frame (us): min=2874 max=5556 avg=3190.2 sd=149.0 (n=1501)
-I (5861) DECODE_BENCH: Task 0: Total: 4798 ms (30.0s audio), RTF: 0.160 (6.3x real-time), core 0
+I (1042) DECODE_BENCH: --- MUSIC (CELT) - 1 concurrent task ---
+I (5992) DECODE_BENCH: Task 0 finished (4934 ms)
+I (5992) DECODE_BENCH: Task 0: Frame (us): min=2945 max=5539 avg=3265.8 sd=144.5 (n=1501)
+I (6002) DECODE_BENCH: Task 0: Total: 4934 ms (30.0s audio), RTF: 0.164 (6.1x real-time), core 0
 
-I (5871) DECODE_BENCH: --- SPEECH (SILK) - 1 concurrent task ---
-I (7201) DECODE_BENCH: Task 0 finished (1326 ms)
-I (7201) DECODE_BENCH: Task 0: Frame (us): min=769 max=2196 avg=879.6 sd=78.1 (n=1501)
-I (7201) DECODE_BENCH: Task 0: Total: 1326 ms (30.0s audio), RTF: 0.044 (22.6x real-time), core 0
+I (6002) DECODE_BENCH: --- SPEECH (SILK) - 1 concurrent task ---
+I (7332) DECODE_BENCH: Task 0 finished (1313 ms)
+I (7332) DECODE_BENCH: Task 0: Frame (us): min=770 max=2211 avg=869.5 sd=76.4 (n=1501)
+I (7342) DECODE_BENCH: Task 0: Total: 1313 ms (30.0s audio), RTF: 0.044 (22.8x real-time), core 0
 
 ...
 
-I (47691) DECODE_BENCH: --- Summary ---
-I (47691) DECODE_BENCH: MUSIC (CELT):
-I (47701) DECODE_BENCH:   1 task:     4804 ms
-I (47701) DECODE_BENCH:   2 tasks:    6873 ms
-I (47711) DECODE_BENCH:   3 tasks:   12146 ms
-I (47711) DECODE_BENCH:   4 tasks:   13943 ms
-I (47711) DECODE_BENCH: SPEECH (SILK):
-I (47721) DECODE_BENCH:   1 task:     1332 ms
-I (47721) DECODE_BENCH:   2 tasks:    1465 ms
-I (47731) DECODE_BENCH:   3 tasks:    2782 ms
-I (47731) DECODE_BENCH:   4 tasks:    2950 ms
-I (47731) DECODE_BENCH: All decodes successful: YES
-I (47741) DECODE_BENCH: Free heap: 17107204 bytes
+I (48092) DECODE_BENCH: --- Summary ---
+I (48092) DECODE_BENCH: MUSIC (CELT):
+I (48092) DECODE_BENCH:   1 task:     4939 ms
+I (48102) DECODE_BENCH:   2 tasks:    6891 ms
+I (48102) DECODE_BENCH:   3 tasks:   12244 ms
+I (48112) DECODE_BENCH:   4 tasks:   14209 ms
+I (48112) DECODE_BENCH: SPEECH (SILK):
+I (48122) DECODE_BENCH:   1 task:     1318 ms
+I (48122) DECODE_BENCH:   2 tasks:    1435 ms
+I (48122) DECODE_BENCH:   3 tasks:    2754 ms
+I (48132) DECODE_BENCH:   4 tasks:    2897 ms
+I (48132) DECODE_BENCH: All decodes successful: YES
+I (48142) DECODE_BENCH: Free heap: 17107204 bytes
 ```
 
 ### Output Fields
@@ -115,21 +115,53 @@ The benchmark shows how performance scales with concurrent tasks on the dual-cor
 
 | Tasks | Wall-clock | Per-task RTF | Notes |
 | ----- | ---------- | ------------ | ----- |
-| 1 | 4.8s | 0.16 (6.3x) | Single task on one core |
+| 1 | 4.9s | 0.16 (6.1x) | Single task on one core |
 | 2 | 6.9s | 0.23 (4.4x) | One task per core - nearly 2x throughput |
-| 3 | 12.1s | 0.40 (2.5x) | Core 0 has 2 tasks, core 1 has 1 |
-| 4 | 13.9s | 0.46 (2.2x) | Two tasks per core |
+| 3 | 12.2s | 0.41 (2.5x) | Core 0 has 2 tasks, core 1 has 1 |
+| 4 | 14.2s | 0.47 (2.1x) | Two tasks per core |
 
 **SPEECH (SILK - mono 10kbit/s)**:
 
 | Tasks | Wall-clock | Per-task RTF | Notes |
 | ----- | ---------- | ------------ | ----- |
-| 1 | 1.3s | 0.04 (22.6x) | Single task on one core |
-| 2 | 1.5s | 0.05 (20.6x) | One task per core |
-| 3 | 2.8s | 0.09 (10.8x) | Core 0 has 2 tasks |
-| 4 | 3.0s | 0.10 (10.2x) | Two tasks per core |
+| 1 | 1.3s | 0.04 (22.8x) | Single task on one core |
+| 2 | 1.4s | 0.05 (21.0x) | One task per core |
+| 3 | 2.8s | 0.09 (11.0x) | Core 0 has 2 tasks |
+| 4 | 2.9s | 0.10 (10.4x) | Two tasks per core |
 
-With 2 tasks (one per core), total throughput nearly doubles while wall-clock time only increases ~43% for CELT and ~10% for SILK. SILK decoding is significantly faster than CELT due to lower bitrate and mono audio.
+With 2 tasks (one per core), total throughput nearly doubles while wall-clock time only increases ~40% for CELT and ~9% for SILK. SILK decoding is significantly faster than CELT due to lower bitrate and mono audio.
+
+### Floating-point vs Fixed-point
+
+The ESP32-S3 has a hardware FPU, and Opus can be built in either floating-point (default) or fixed-point mode:
+
+**MUSIC (CELT - stereo 128kbit/s)**:
+
+| Tasks | Floating-point | Fixed-point | Difference |
+| ----- | -------------- | ----------- | ---------- |
+| 1 | 4.9s (6.1x) | 5.4s (5.6x) | Fixed 9% slower |
+| 2 | 6.9s (4.4x) | 6.4s (4.7x) | Fixed 7% faster |
+| 4 | 14.2s (2.1x) | 13.6s (2.2x) | Fixed 4% faster |
+
+**SPEECH (SILK - mono 10kbit/s)**:
+
+| Tasks | Floating-point | Fixed-point | Difference |
+| ----- | -------------- | ----------- | ---------- |
+| 1 | 1.3s (22.8x) | 1.0s (29.2x) | Fixed 22% faster |
+| 2 | 1.4s (21.0x) | 1.2s (26.0x) | Fixed 19% faster |
+| 4 | 2.9s (10.4x) | 2.3s (13.0x) | Fixed 20% faster |
+
+**Key observations:**
+
+- **SILK is always faster with fixed-point** - The SILK codec's simpler arithmetic benefits from optimized fixed-point code paths.
+- **CELT single-task favors floating-point** - Complex FFT transforms benefit from the hardware FPU.
+- **CELT multi-task favors fixed-point** - With concurrent tasks, FPU contention becomes a bottleneck. The single hardware FPU must be shared, while fixed-point integer operations run fully parallel across cores.
+
+**Recommendations:**
+
+- Speech-only applications: Use fixed-point for best performance
+- Music-only, single stream: Use floating-point (default)
+- Multiple concurrent streams: Consider fixed-point to avoid FPU contention
 
 ## Thread Safety
 
