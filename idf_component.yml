@@ -6,4 +6,4 @@ description: "Opus audio codec library for ESP32 - high-quality audio compressio
 license: "Apache-2.0"
 maintainers:
   - Kevin Ahrendt <kevin.ahrendt@openhomefoundation.org>
-version: "0.2.0"
+version: "0.3.0"
