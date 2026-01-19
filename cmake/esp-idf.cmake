@@ -22,6 +22,15 @@ function(opus_configure_esp_idf COMPONENT_LIB COMPONENT_DIR OPUS_STAGED_DIR)
     # Get IDF target
     idf_build_get_property(target IDF_TARGET)
 
+    # Force disable PIC/PIE at compile level for RISC-V (these must come early)
+    # Also use local-exec TLS model to avoid GOT-relative TLS access
+    if(NOT target STREQUAL "esp32" AND NOT target STREQUAL "esp32s3" AND NOT target STREQUAL "esp32s2")
+        # Use BEFORE to ensure these flags come before any -fPIC that might be added later
+        target_compile_options(${COMPONENT_LIB} BEFORE PUBLIC
+            -fno-pic -fno-pie -fno-plt -ftls-model=local-exec
+        )
+    endif()
+
     # Add micro-ogg-demuxer as a subdirectory
     if(NOT TARGET micro_ogg_demuxer)
         add_subdirectory(${COMPONENT_DIR}/lib/micro-ogg-demuxer
