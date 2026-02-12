@@ -38,6 +38,7 @@ endif()
 # Include CMake modules
 # ==============================================================================
 
+include(${OPUS_COMPONENT_DIR}/cmake/dependencies.cmake)
 include(${OPUS_COMPONENT_DIR}/cmake/sources.cmake)
 include(${OPUS_COMPONENT_DIR}/cmake/functions.cmake)
 include(${OPUS_COMPONENT_DIR}/cmake/staging.cmake)

@@ -240,7 +240,8 @@ endfunction()
 #   OPUS_STAGED_DIR - Path to the staged opus directory (for use in include paths)
 # ==============================================================================
 function(opus_setup_staged_build COMPONENT_DIR APPLY_XTENSA)
-    set(SOURCE_DIR "${COMPONENT_DIR}/lib/opus")
+    # Use OPUS_LIB_DIR from dependencies.cmake (handles submodule vs FetchContent)
+    set(SOURCE_DIR "${OPUS_LIB_DIR}")
     set(STAGED_DIR "${CMAKE_CURRENT_BINARY_DIR}/opus-staged")
 
     # Create staging directory

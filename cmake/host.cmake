@@ -21,8 +21,9 @@ set(__opus_host_defined TRUE)
 # ==============================================================================
 function(opus_configure_host TARGET SOURCE_DIR OPUS_STAGED_DIR)
     # Add micro-ogg-demuxer as a subdirectory
+    # Uses MICRO_OGG_LIB_DIR from dependencies.cmake (handles submodule vs FetchContent)
     if(NOT TARGET micro_ogg_demuxer)
-        add_subdirectory(${SOURCE_DIR}/lib/micro-ogg-demuxer
+        add_subdirectory(${MICRO_OGG_LIB_DIR}
                          ${CMAKE_CURRENT_BINARY_DIR}/micro-ogg-demuxer)
     endif()
     target_link_libraries(${TARGET} PUBLIC micro_ogg_demuxer)
