@@ -27,7 +27,7 @@ jobs:
       - name: Update version files
         run: |
           sed -i "s/\"version\": .*/\"version\": \"${{ steps.drafter.outputs.resolved_version }}\",/g" library.json
-          sed -i "s/version: .*/version: \"${{ steps.drafter.outputs.resolved_version }}\",/g" idf_component.yml
+          sed -i "s/version: .*/version: \"${{ steps.drafter.outputs.resolved_version }}\"/g" idf_component.yml
 
       - name: Commit changes
         run: |
