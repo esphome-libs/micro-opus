@@ -1,6 +1,6 @@
 {
     "name": "micro-opus",
-    "version": "0.3.4",
+    "version": "0.3.5",
     "description": "Wrapper for the Opus audio codec with PSRAM support and Xtensa DSP optimizations",
     "keywords": ["opus", "audio", "codec"],
     "repository": {
