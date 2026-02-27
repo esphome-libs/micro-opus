@@ -125,13 +125,14 @@ function(opus_create_staging_directory SOURCE_DIR STAGED_DIR APPLY_XTENSA)
         # Normalize line endings to LF in staged source files.
         # On Windows, Git may check out files with CRLF, but our patches use LF.
         # Without normalization, patch fails with "different line endings".
+        # Note: file(WRITE) cannot be used here — it writes in text mode on
+        # Windows, silently converting \n back to \r\n. configure_file with
+        # NEWLINE_STYLE UNIX is guaranteed to produce LF output on all platforms.
         if(WIN32)
             file(GLOB_RECURSE _staged_sources
                 "${STAGED_DIR}/*.c" "${STAGED_DIR}/*.h")
             foreach(_src IN LISTS _staged_sources)
-                file(READ "${_src}" _content)
-                string(REPLACE "\r\n" "\n" _content "${_content}")
-                file(WRITE "${_src}" "${_content}")
+                configure_file("${_src}" "${_src}" NEWLINE_STYLE UNIX @ONLY)
             endforeach()
             message(STATUS "Opus: Normalized line endings in staged source files")
         endif()
