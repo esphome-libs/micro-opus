@@ -40,5 +40,8 @@ function(opus_set_optimization_flags TARGET)
         -O3
         -ffunction-sections
         -fdata-sections
+        # Disable false-positive warnings with -O3 optimization (GCC only)
+        $<$<C_COMPILER_ID:GNU>:-Wno-maybe-uninitialized>
+        $<$<C_COMPILER_ID:GNU>:-Wno-stringop-overflow>
     )
 endfunction()
