@@ -1,6 +1,7 @@
 # ESP-IDF build artifacts
 build/
-sdkconfig
+sdkconfig.*
+!sdkconfig.defaults*
 sdkconfig.old
 *.pyc
 __pycache__/

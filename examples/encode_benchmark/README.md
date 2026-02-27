@@ -103,34 +103,34 @@ I (1069) ENCODE_BENCH: ========== Iteration 1 ==========
 I (1079) ENCODE_BENCH: === SPEECH Encoding Tests (40 configurations) ===
 
 I (1079) ENCODE_BENCH: --- SPEECH: VOIP, complexity=0, bitrate=10000 ---
-I (9899) ENCODE_BENCH: Frame (us): min=3733 max=5057 avg=4467.0 sd=448.8 (n=1500)
-I (9899) ENCODE_BENCH: Total: 6700 ms (30.0s audio), RTF: 0.223 (4.5x real-time)
-I (9899) ENCODE_BENCH: Encoded: 34542 bytes (9211 bps actual, target 10000 bps)
+I (9149) ENCODE_BENCH: Frame (us): min=3370 max=4684 avg=4082.5 sd=463.9 (n=1500)
+I (9149) ENCODE_BENCH: Total: 6123 ms (30.0s audio), RTF: 0.204 (4.9x real-time)
+I (9149) ENCODE_BENCH: Encoded: 34542 bytes (9211 bps actual, target 10000 bps)
 
 ...
 
-I (346419) ENCODE_BENCH: --- SPEECH: AUDIO, complexity=10, bitrate=32000 ---
-I (626839) ENCODE_BENCH: Frame (us): min=4316 max=8150 avg=6860.2 sd=603.6 (n=1500)
-I (626839) ENCODE_BENCH: Total: 10290 ms (30.0s audio), RTF: 0.343 (2.9x real-time)
-I (626839) ENCODE_BENCH: Encoded: 121566 bytes (32418 bps actual, target 32000 bps)
+I (589889) ENCODE_BENCH: --- SPEECH: AUDIO, complexity=10, bitrate=32000 ---
+I (602159) ENCODE_BENCH: Frame (us): min=4251 max=8040 avg=6725.8 sd=594.7 (n=1500)
+I (602159) ENCODE_BENCH: Total: 10088 ms (30.0s audio), RTF: 0.336 (3.0x real-time)
+I (602159) ENCODE_BENCH: Encoded: 121566 bytes (32418 bps actual, target 32000 bps)
 
-I (626849) ENCODE_BENCH: === MUSIC Encoding Tests (20 configurations) ===
+I (602169) ENCODE_BENCH: === MUSIC Encoding Tests (20 configurations) ===
 
-I (626859) ENCODE_BENCH: --- MUSIC: AUDIO, complexity=0, bitrate=64000 ---
-I (644049) ENCODE_BENCH: Frame (us): min=5781 max=6811 avg=6556.7 sd=96.0 (n=1500)
-I (644049) ENCODE_BENCH: Total: 9835 ms (30.0s audio), RTF: 0.328 (3.1x real-time)
-I (644059) ENCODE_BENCH: Encoded: 241654 bytes (64441 bps actual, target 64000 bps)
+I (602179) ENCODE_BENCH: --- MUSIC: AUDIO, complexity=0, bitrate=64000 ---
+I (618689) ENCODE_BENCH: Frame (us): min=5530 max=6602 avg=6330.5 sd=98.6 (n=1500)
+I (618689) ENCODE_BENCH: Total: 9495 ms (30.0s audio), RTF: 0.317 (3.2x real-time)
+I (618699) ENCODE_BENCH: Encoded: 241654 bytes (64441 bps actual, target 64000 bps)
 
 ...
 
-I (1079799) ENCODE_BENCH: --- MUSIC: AUDIO, complexity=10, bitrate=192000 ---
-I (1079799) ENCODE_BENCH: Frame (us): min=8537 max=16959 avg=13005.2 sd=1959.1 (n=1500)
-I (1079799) ENCODE_BENCH: Total: 19507 ms (30.0s audio), RTF: 0.650 (1.5x real-time)
-I (1079799) ENCODE_BENCH: Encoded: 721980 bytes (192528 bps actual, target 192000 bps)
+I (1041739) ENCODE_BENCH: --- MUSIC: AUDIO, complexity=10, bitrate=192000 ---
+I (1041739) ENCODE_BENCH: Frame (us): min=8468 max=16662 avg=12890.2 sd=1985.3 (n=1500)
+I (1041749) ENCODE_BENCH: Total: 19335 ms (30.0s audio), RTF: 0.645 (1.6x real-time)
+I (1041749) ENCODE_BENCH: Encoded: 721980 bytes (192528 bps actual, target 192000 bps)
 
-I (1079809) ENCODE_BENCH: === Iteration 1 Summary ===
-I (1079819) ENCODE_BENCH: All encodes successful: YES
-I (1079819) ENCODE_BENCH: Free heap: 16949064 bytes
+I (1041759) ENCODE_BENCH: === Iteration 1 Summary ===
+I (1041759) ENCODE_BENCH: All encodes successful: YES
+I (1041769) ENCODE_BENCH: Free heap: 16949064 bytes
 ```
 
 ### Output Fields
@@ -161,21 +161,21 @@ Values show real-time multiplier with RTF in parentheses.
 
 | Complexity | 10 kbit/s | 16 kbit/s | 24 kbit/s | 32 kbit/s |
 | ---------- | --------- | --------- | --------- | --------- |
-| 0 | 4.5x (0.22) | 3.6x (0.28) | 3.6x (0.28) | 3.6x (0.28) |
-| 2 | 2.8x (0.36) | 2.8x (0.36) | 2.8x (0.36) | 2.8x (0.36) |
-| 5 | 2.0x (0.50) | 2.0x (0.50) | 2.0x (0.51) | 2.0x (0.51) |
-| 8 | 1.4x (0.69) | 1.4x (0.69) | 1.4x (0.69) | 1.4x (0.70) |
-| 10 | 1.4x (0.69) | 1.4x (0.69) | 1.4x (0.69) | 1.4x (0.70) |
+| 0 | 4.9x (0.20) | 3.9x (0.26) | 3.8x (0.26) | 3.8x (0.26) |
+| 2 | 2.9x (0.34) | 2.9x (0.34) | 2.9x (0.34) | 2.9x (0.35) |
+| 5 | 2.1x (0.48) | 2.1x (0.49) | 2.1x (0.49) | 2.0x (0.49) |
+| 8 | 1.5x (0.68) | 1.5x (0.68) | 1.5x (0.68) | 1.5x (0.68) |
+| 10 | 1.5x (0.68) | 1.5x (0.68) | 1.5x (0.68) | 1.5x (0.68) |
 
 #### AUDIO Mode
 
 | Complexity | 10 kbit/s | 16 kbit/s | 24 kbit/s | 32 kbit/s |
 | ---------- | --------- | --------- | --------- | --------- |
-| 0 | 4.5x (0.22) | 3.6x (0.28) | **5.5x (0.18)** | **5.4x (0.18)** |
-| 2 | 2.8x (0.36) | 2.8x (0.36) | **4.6x (0.22)** | **4.6x (0.22)** |
-| 5 | 2.0x (0.50) | 2.0x (0.50) | **3.0x (0.34)** | **3.0x (0.34)** |
-| 8 | 1.4x (0.70) | 1.4x (0.69) | **2.9x (0.34)** | **2.9x (0.34)** |
-| 10 | 1.4x (0.70) | 1.4x (0.69) | **2.9x (0.34)** | **2.9x (0.34)** |
+| 0 | 5.0x (0.20) | 3.9x (0.26) | **5.5x (0.18)** | **5.4x (0.18)** |
+| 2 | 3.0x (0.34) | 2.9x (0.34) | **4.6x (0.22)** | **4.6x (0.22)** |
+| 5 | 2.1x (0.48) | 2.1x (0.48) | **3.0x (0.33)** | **3.0x (0.33)** |
+| 8 | 1.5x (0.68) | 1.5x (0.67) | **3.0x (0.34)** | **3.0x (0.34)** |
+| 10 | 1.5x (0.68) | 1.5x (0.67) | **3.0x (0.34)** | **3.0x (0.34)** |
 
 **Bold** = CELT/SILK hybrid (faster than SILK at same bitrate)
 
@@ -183,11 +183,11 @@ Values show real-time multiplier with RTF in parentheses.
 
 | Complexity | 64 kbit/s | 96 kbit/s | 128 kbit/s | 192 kbit/s |
 | ---------- | --------- | --------- | ---------- | ---------- |
-| 0 | 3.1x (0.33) | 2.9x (0.35) | 2.8x (0.36) | 2.6x (0.39) |
-| 2 | 2.6x (0.39) | 2.4x (0.41) | 2.3x (0.43) | 2.2x (0.45) |
-| 5 | 1.9x (0.52) | 1.8x (0.55) | 1.8x (0.56) | 1.7x (0.58) |
-| 8 | 1.8x (0.55) | 1.7x (0.60) | 1.6x (0.63) | 1.5x (0.65) |
-| 10 | 1.8x (0.55) | 1.7x (0.60) | 1.6x (0.63) | 1.5x (0.65) |
+| 0 | 3.2x (0.32) | 3.0x (0.34) | 2.8x (0.35) | 2.6x (0.38) |
+| 2 | 2.6x (0.38) | 2.5x (0.41) | 2.4x (0.42) | 2.3x (0.44) |
+| 5 | 2.0x (0.51) | 1.9x (0.53) | 1.8x (0.55) | 1.8x (0.57) |
+| 8 | 1.8x (0.54) | 1.7x (0.59) | 1.6x (0.62) | 1.6x (0.65) |
+| 10 | 1.8x (0.54) | 1.7x (0.59) | 1.6x (0.62) | 1.6x (0.65) |
 
 ### Key Observations
 
@@ -195,7 +195,7 @@ Values show real-time multiplier with RTF in parentheses.
 | ------- | ------- |
 | Complexity 8 = 10 | No performance difference between complexity 8 and 10 |
 | CELT faster than SILK | At 24+ kbit/s in AUDIO mode, encoder switches to CELT (~2x faster) |
-| All configs real-time capable | Worst case 1.4x real-time (complexity 8/10 VOIP speech) |
+| All configs real-time capable | Worst case 1.5x real-time (complexity 8/10 VOIP speech) |
 | Bitrate effect (SILK) | Minimal impact on encode time |
 | Bitrate effect (CELT) | Higher bitrates slightly slower (more data to process) |
 
@@ -203,9 +203,9 @@ Values show real-time multiplier with RTF in parentheses.
 
 | Codec | Best Case | Worst Case | Notes |
 | ----- | --------- | ---------- | ----- |
-| SILK (speech) | 4.5x @ c=0 | 1.4x @ c=8+ | Bitrate has little effect on speed |
-| CELT (speech) | 5.5x @ c=0 | 2.9x @ c=8+ | ~2x faster than SILK at same complexity |
-| CELT (music) | 3.1x @ c=0 | 1.5x @ c=8+ | Stereo 48kHz more demanding than mono 16kHz |
+| SILK (speech) | 4.9x @ c=0 | 1.5x @ c=8+ | Bitrate has little effect on speed |
+| CELT (speech) | 5.5x @ c=0 | 3.0x @ c=8+ | ~2x faster than SILK at same complexity |
+| CELT (music) | 3.2x @ c=0 | 1.6x @ c=8+ | Stereo 48kHz more demanding than mono 16kHz |
 
 ## Benchmark Results (Floating-Point)
 
@@ -215,8 +215,8 @@ Results with `CONFIG_OPUS_FLOATING_POINT=y` for comparison. Floating-point is si
 
 | Mode | Complexity | 10 kbit/s | 16 kbit/s | Higher |
 | ---- | ---------- | --------- | --------- | ------ |
-| VOIP | 0 | 1.1x (0.90) | **0.6x (1.55)** | skipped |
-| AUDIO | 0 | 1.1x (0.89) | **0.6x (1.55)** | skipped |
+| VOIP | 0 | 1.1x (0.87) | **0.7x (1.53)** | skipped |
+| AUDIO | 0 | 1.1x (0.87) | **0.7x (1.53)** | skipped |
 
 **Bold** = Slower than real-time (RTF > 1.0). Higher complexity levels were not tested because complexity 0 already fails at 16 kbit/s.
 
@@ -224,20 +224,20 @@ Results with `CONFIG_OPUS_FLOATING_POINT=y` for comparison. Floating-point is si
 
 | Complexity | 64 kbit/s | 96 kbit/s | 128 kbit/s | 192 kbit/s |
 | ---------- | --------- | --------- | ---------- | ---------- |
-| 0 | 2.8x (0.36) | 2.6x (0.39) | 2.4x (0.42) | 2.1x (0.48) |
-| 2 | 2.4x (0.42) | 2.2x (0.46) | 2.1x (0.48) | 1.9x (0.54) |
-| 5 | 2.0x (0.51) | 1.8x (0.54) | 1.8x (0.57) | 1.6x (0.62) |
-| 8 | 1.3x (0.77) | 1.2x (0.83) | 1.1x (0.88) | 1.1x (0.95) |
-| 10 | 1.3x (0.77) | 1.2x (0.83) | 1.1x (0.88) | 1.1x (0.95) |
+| 0 | 2.9x (0.34) | 2.7x (0.37) | 2.5x (0.40) | 2.2x (0.46) |
+| 2 | 2.5x (0.41) | 2.3x (0.44) | 2.1x (0.47) | 1.9x (0.52) |
+| 5 | 2.0x (0.49) | 1.9x (0.52) | 1.8x (0.55) | 1.7x (0.61) |
+| 8 | 1.4x (0.73) | 1.3x (0.79) | 1.2x (0.84) | 1.1x (0.91) |
+| 10 | 1.4x (0.73) | 1.3x (0.79) | 1.2x (0.84) | 1.1x (0.91) |
 
 ### Fixed-Point vs Floating-Point Comparison
 
 | Codec | Fixed-Point | Floating-Point | Speedup |
 | ----- | ----------- | -------------- | ------- |
-| SILK (c=0, 10k) | 4.5x real-time | 1.1x real-time | **4x faster** |
-| SILK (c=0, 16k) | 3.6x real-time | 0.6x (fails) | **6x faster** |
-| CELT music (c=0, 64k) | 3.1x real-time | 2.8x real-time | 1.1x faster |
-| CELT music (c=8, 192k) | 1.5x real-time | 1.1x real-time | 1.4x faster |
+| SILK (c=0, 10k) | 4.9x real-time | 1.1x real-time | **4x faster** |
+| SILK (c=0, 16k) | 3.9x real-time | 0.7x (fails) | **6x faster** |
+| CELT music (c=0, 64k) | 3.2x real-time | 2.9x real-time | 1.1x faster |
+| CELT music (c=8, 192k) | 1.6x real-time | 1.1x real-time | 1.5x faster |
 
 **Recommendation**: Use fixed-point (`CONFIG_OPUS_FLOATING_POINT=n`) for encoding on ESP32-S3. SILK encoding with floating-point is not viable for real-time applications.
 
