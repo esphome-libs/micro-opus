@@ -1,0 +1,3 @@
+# Patch files must keep LF endings on all platforms.
+# Windows patch commands fail with CRLF in diff content.
+*.patch eol=lf
