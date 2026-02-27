@@ -424,11 +424,11 @@ OggOpusResult OggOpusDecoder::apply_pre_skip(uint8_t* output, size_t decoded_sam
 }
 
 OggOpusDecoder::OggOpusDecoder(bool enable_crc, uint32_t sample_rate, uint8_t channels)
-    : enable_crc_(enable_crc),
+    : ogg_demuxer_(nullptr),
+      opus_head_(nullptr),
       sample_rate_(sample_rate),
-      channels_(channels),
-      ogg_demuxer_(nullptr),
-      opus_head_(nullptr) {
+      enable_crc_(enable_crc),
+      channels_(channels) {
     // Lazy allocation: all resources allocated on first decode() call
     // Constructor guaranteed to succeed
     // Note: sample_rate validation happens at decoder creation time in processPacket()
