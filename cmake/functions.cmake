@@ -37,11 +37,8 @@ endfunction()
 # ==============================================================================
 function(opus_set_optimization_flags TARGET)
     target_compile_options(${TARGET} PRIVATE
-        -O3
+        -O2
         -ffunction-sections
         -fdata-sections
-        # Disable false-positive warnings with -O3 optimization (GCC only)
-        $<$<C_COMPILER_ID:GNU>:-Wno-maybe-uninitialized>
-        $<$<C_COMPILER_ID:GNU>:-Wno-stringop-overflow>
     )
 endfunction()
