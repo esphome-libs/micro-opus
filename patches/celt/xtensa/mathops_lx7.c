@@ -30,15 +30,18 @@ POSSIBILITY OF SUCH DAMAGE.
 #if !defined(DISABLE_FLOAT_API) && defined(OPUS_XTENSA_LX7)
 
 void celt_float2int16_lx7(const float* OPUS_RESTRICT in, short* OPUS_RESTRICT out, int cnt) {
-    int i;
-    for (i = 0; i < cnt; i++) {
-        int32_t result;
-        __asm__("round.s %0, %1, 15\n\t"
-                "clamps %0, %0, 15\n\t"
-                : "=r"(result)
-                : "f"(in[i]));
-        out[i] = (opus_int16)result;
-    }
+    int32_t tmp;
+    __asm__ volatile("loopnez %[cnt], 1f\n\t"
+                     "lsi f0, %[in], 0\n\t"
+                     "addi %[in], %[in], 4\n\t"
+                     "round.s %[tmp], f0, 15\n\t"
+                     "clamps %[tmp], %[tmp], 15\n\t"
+                     "s16i %[tmp], %[out], 0\n\t"
+                     "addi %[out], %[out], 2\n\t"
+                     "1:\n\t"
+                     : [in] "+r"(in), [out] "+r"(out), [tmp] "=&r"(tmp)
+                     : [cnt] "r"(cnt)
+                     : "f0", "memory");
 }
 
 #endif
