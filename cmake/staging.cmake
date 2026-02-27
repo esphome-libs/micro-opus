@@ -51,6 +51,27 @@ set(OPUS_XTENSA_ADDITIONS
 )
 
 # ==============================================================================
+# Find patch executable
+# ==============================================================================
+# Use Git's location as a hint (covers Windows Git-for-Windows installs),
+# then fall back to a plain PATH search.
+find_package(Git QUIET)
+if(GIT_EXECUTABLE)
+    get_filename_component(_git_dir "${GIT_EXECUTABLE}" DIRECTORY)
+    find_program(PATCH_EXECUTABLE NAMES patch
+        HINTS "${_git_dir}" "${_git_dir}/../usr/bin")
+endif()
+if(NOT PATCH_EXECUTABLE)
+    find_program(PATCH_EXECUTABLE NAMES patch)
+endif()
+if(NOT PATCH_EXECUTABLE)
+    message(FATAL_ERROR
+        "Opus: 'patch' command not found. "
+        "Please ensure Git for Windows or a patch utility is installed and in your PATH.")
+endif()
+message(STATUS "Opus: Using patch command: ${PATCH_EXECUTABLE}")
+
+# ==============================================================================
 # opus_create_staging_directory
 # ==============================================================================
 # Creates a staged copy of the opus submodule in the build directory.
@@ -129,17 +150,26 @@ function(opus_apply_patch STAGED_DIR PATCH_FILE)
     set(MARKER_FILE "${STAGED_DIR}/.patch_${PATCH_MARKER}")
 
     if(NOT EXISTS "${MARKER_FILE}")
+        # Convert patch path to native format for the patch command's -i argument
+        file(TO_NATIVE_PATH "${FULL_PATCH_PATH}" NATIVE_PATCH_PATH)
+
         # Apply the patch
         execute_process(
-            COMMAND patch --binary -p1 -i "${FULL_PATCH_PATH}"
+            COMMAND "${PATCH_EXECUTABLE}" --binary -p1 -i "${NATIVE_PATCH_PATH}"
             WORKING_DIRECTORY "${STAGED_DIR}"
             RESULT_VARIABLE PATCH_RESULT
             OUTPUT_VARIABLE PATCH_OUTPUT
             ERROR_VARIABLE PATCH_ERROR
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_STRIP_TRAILING_WHITESPACE
         )
 
         if(NOT PATCH_RESULT EQUAL 0)
-            message(FATAL_ERROR "Opus: Failed to apply patch ${PATCH_FILE}:\n${PATCH_ERROR}")
+            message(FATAL_ERROR
+                "Opus: Failed to apply patch ${PATCH_FILE}:\n"
+                "Return code: ${PATCH_RESULT}\n"
+                "Output: ${PATCH_OUTPUT}\n"
+                "Error: ${PATCH_ERROR}")
         endif()
 
         # Write marker
