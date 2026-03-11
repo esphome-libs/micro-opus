@@ -79,15 +79,6 @@ OggOpusResult OggOpusDecoder::process_packet(const micro_ogg::OggPacket& packet,
     bool is_eos = packet.is_eos;
     bool is_last_on_page = packet.is_last_on_page;
 
-    // RFC 7845 Section 4.1: Validate continued packet flag consistency
-    // Only check on first packet of a new page
-    if (packets_on_current_page_ == 0) {
-        bool page_has_continued_flag = ogg_demuxer_->current_page_has_continued_flag();
-        if (page_has_continued_flag != expect_continued_packet_) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
-    }
-
     // Dispatch to state handler
     switch (state_) {
         case STATE_EXPECT_OPUS_HEAD:
@@ -113,10 +104,6 @@ void OggOpusDecoder::update_page_tracking(bool is_last_on_page) {
     packets_on_current_page_++;
     if (is_last_on_page) {
         packets_on_current_page_ = 0;
-        expect_continued_packet_ = ogg_demuxer_->previous_page_ended_with_continued_packet();
-        previous_packet_was_last_on_page_ = true;
-    } else {
-        previous_packet_was_last_on_page_ = false;
     }
 }
 
@@ -249,14 +236,6 @@ OggOpusResult OggOpusDecoder::stream_opus_tags(const uint8_t* input, size_t inpu
             return OGG_OPUS_INPUT_INVALID;
         }
 
-        // RFC 7845 Section 4.1: Validate continued packet flag consistency
-        if (packets_on_current_page_ == 0) {
-            bool page_has_continued_flag = ogg_demuxer_->current_page_has_continued_flag();
-            if (page_has_continued_flag != expect_continued_packet_) {
-                return OGG_OPUS_INPUT_INVALID;
-            }
-        }
-
         has_seen_opus_tags_ = true;
         opus_tags_magic_len_ = 0;
         state_ = STATE_STREAMING_OPUS_TAGS;
@@ -283,6 +262,15 @@ OggOpusResult OggOpusDecoder::stream_opus_tags(const uint8_t* input, size_t inpu
         return OGG_OPUS_INPUT_INVALID;
     }
 
+    // RFC 7845 Section 4: Granule position must be 0 on all OpusTags pages.
+    // Intermediate continuation pages use -1 (INVALID_GRANULE_POSITION) per RFC 3533.
+    if (parse_state.packet.is_last_on_page) {
+        int64_t gp = parse_state.packet.granule_position;
+        if (gp != 0 && (uint64_t)gp != INVALID_GRANULE_POSITION) {
+            return OGG_OPUS_INPUT_INVALID;
+        }
+    }
+
     // Check if we've reached the end of the OpusTags packet
     if (parse_state.packet.is_end_of_packet) {
         // Validate magic was fully received and matched
@@ -290,17 +278,9 @@ OggOpusResult OggOpusDecoder::stream_opus_tags(const uint8_t* input, size_t inpu
             return OGG_OPUS_INPUT_INVALID;
         }
 
-        // RFC 7845 Section 4: Validate granule position for OpusTags page
-        if (parse_state.packet.is_last_on_page && parse_state.packet.granule_position != 0) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
-
-        // Synchronize page tracking state for the transition to audio decoding.
-        // The demuxer tracks page boundaries internally during get_next_data(),
-        // so we query its state to set expect_continued_packet_ correctly.
-        expect_continued_packet_ = ogg_demuxer_->previous_page_ended_with_continued_packet();
+        // Reset page tracking for audio decoding.
+        // OpusTags was the only packet on its page(s), so start fresh.
         packets_on_current_page_ = 0;
-        previous_packet_was_last_on_page_ = parse_state.packet.is_last_on_page;
 
         state_ = STATE_DECODING;
     }
@@ -564,8 +544,6 @@ void OggOpusDecoder::reset() {
     packets_on_current_page_ = 0;
     first_audio_page_samples_ = -1;  // -1 = not yet on first audio page
     eos_seen_ = false;
-    expect_continued_packet_ = false;
-    previous_packet_was_last_on_page_ = true;  // First packet after reset is on a new page
 }
 
 uint32_t OggOpusDecoder::get_sample_rate() const {

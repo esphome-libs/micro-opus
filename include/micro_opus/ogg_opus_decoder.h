@@ -347,7 +347,7 @@ private:
     OggOpusResult process_packet(const micro_ogg::OggPacket& packet, uint8_t* output,
                                  size_t output_size, size_t& samples_decoded);
 
-    // Page boundary tracking helper
+    // Page boundary tracking for RFC 7845 packet isolation validation
     void update_page_tracking(bool is_last_on_page);
 
     // Granule position validation helper (RFC 7845 compliance)
@@ -464,13 +464,6 @@ private:
     // "There MUST NOT be any more pages in an Opus logical bitstream after a page marked 'end of
     // stream'."
     bool eos_seen_{false};
-
-    // RFC 7845 Section 4.1: Track continued packet flag for validation
-    // "If a page has the 'continued packet' flag set and the previous page with packet data
-    // does not end in a continued packet (does not end with a lacing value of 255), then a
-    // demuxer MUST NOT attempt to decode the data for the first packet on the page."
-    bool expect_continued_packet_{false};
-    bool previous_packet_was_last_on_page_{true};  // Track page boundaries for validation
 };
 
 }  // namespace micro_opus
