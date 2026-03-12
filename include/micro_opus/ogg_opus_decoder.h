@@ -33,6 +33,7 @@ struct OpusMSDecoder;
 namespace micro_ogg {
 class OggDemuxer;
 struct OggPacket;
+enum OggDemuxResult : int8_t;
 }  // namespace micro_ogg
 
 namespace micro_opus {
@@ -346,7 +347,7 @@ private:
     OggOpusResult process_packet(const micro_ogg::OggPacket& packet, uint8_t* output,
                                  size_t output_size, size_t& samples_decoded);
 
-    // Page boundary tracking helper
+    // Page boundary tracking for RFC 7845 packet isolation validation
     void update_page_tracking(bool is_last_on_page);
 
     // Granule position validation helper (RFC 7845 compliance)
@@ -360,17 +361,26 @@ private:
     // Opus decoder creation helper
     OggOpusResult create_opus_decoder(uint8_t output_channels);
 
+    // Stream through OpusTags using get_next_data() to avoid internal buffering
+    OggOpusResult stream_opus_tags(const uint8_t* input, size_t input_len, size_t& bytes_consumed);
+
+    // Convert demuxer error to OggOpusResult with optional error logging
+    OggOpusResult handle_demuxer_error(micro_ogg::OggDemuxResult result);
+
     // State handlers
     OggOpusResult handle_opus_head_packet(const uint8_t* packet_data, size_t packet_len,
                                           int64_t granule_pos, bool is_bos, bool is_last_on_page);
-    OggOpusResult handle_opus_tags_packet(const uint8_t* packet_data, size_t packet_len,
-                                          int64_t granule_pos, bool is_last_on_page);
     OggOpusResult handle_audio_packet(const uint8_t* packet_data, size_t packet_len,
                                       int64_t granule_pos, bool is_eos, bool is_last_on_page,
                                       uint8_t* output, size_t output_size, size_t& samples_decoded);
 
     // Internal state machine
-    enum State : uint8_t { STATE_EXPECT_OPUS_HEAD, STATE_EXPECT_OPUS_TAGS, STATE_DECODING };
+    enum State : uint8_t {
+        STATE_EXPECT_OPUS_HEAD,
+        STATE_EXPECT_OPUS_TAGS,
+        STATE_STREAMING_OPUS_TAGS,  // Streaming through OpusTags via get_next_data()
+        STATE_DECODING
+    };
 
     // =======================================================================
     // Member variables ordered by size (largest to smallest) to minimize padding
@@ -442,6 +452,11 @@ private:
     bool has_seen_opus_head_{false};
     bool has_seen_opus_tags_{false};
 
+    // OpusTags magic signature staging buffer for streaming validation
+    // Accumulates the first 8 bytes ("OpusTags") across get_next_data() calls
+    uint8_t opus_tags_magic_buf_[8]{};
+    uint8_t opus_tags_magic_len_{0};
+
     // RFC 7845 Section 4: Track packets per page for isolation validation
     uint8_t packets_on_current_page_{0};
 
@@ -449,13 +464,6 @@ private:
     // "There MUST NOT be any more pages in an Opus logical bitstream after a page marked 'end of
     // stream'."
     bool eos_seen_{false};
-
-    // RFC 7845 Section 4.1: Track continued packet flag for validation
-    // "If a page has the 'continued packet' flag set and the previous page with packet data
-    // does not end in a continued packet (does not end with a lacing value of 255), then a
-    // demuxer MUST NOT attempt to decode the data for the first packet on the page."
-    bool expect_continued_packet_{false};
-    bool previous_packet_was_last_on_page_{true};  // Track page boundaries for validation
 };
 
 }  // namespace micro_opus

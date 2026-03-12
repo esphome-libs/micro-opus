@@ -79,15 +79,6 @@ OggOpusResult OggOpusDecoder::process_packet(const micro_ogg::OggPacket& packet,
     bool is_eos = packet.is_eos;
     bool is_last_on_page = packet.is_last_on_page;
 
-    // RFC 7845 Section 4.1: Validate continued packet flag consistency
-    // Only check on first packet of a new page
-    if (packets_on_current_page_ == 0) {
-        bool page_has_continued_flag = ogg_demuxer_->current_page_has_continued_flag();
-        if (page_has_continued_flag != expect_continued_packet_) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
-    }
-
     // Dispatch to state handler
     switch (state_) {
         case STATE_EXPECT_OPUS_HEAD:
@@ -96,8 +87,9 @@ OggOpusResult OggOpusDecoder::process_packet(const micro_ogg::OggPacket& packet,
                                            is_last_on_page);
 
         case STATE_EXPECT_OPUS_TAGS:
-            samples_decoded = 0;
-            return handle_opus_tags_packet(packet_data, packet_len, granule_pos, is_last_on_page);
+        case STATE_STREAMING_OPUS_TAGS:
+            // OpusTags is handled via streaming in decode(), not here
+            return OGG_OPUS_INPUT_INVALID;
 
         case STATE_DECODING:
             return handle_audio_packet(packet_data, packet_len, granule_pos, is_eos,
@@ -112,10 +104,6 @@ void OggOpusDecoder::update_page_tracking(bool is_last_on_page) {
     packets_on_current_page_++;
     if (is_last_on_page) {
         packets_on_current_page_ = 0;
-        expect_continued_packet_ = ogg_demuxer_->previous_page_ended_with_continued_packet();
-        previous_packet_was_last_on_page_ = true;
-    } else {
-        previous_packet_was_last_on_page_ = false;
     }
 }
 
@@ -227,43 +215,117 @@ OggOpusResult OggOpusDecoder::handle_opus_head_packet(const uint8_t* packet_data
     return OGG_OPUS_OK;
 }
 
-OggOpusResult OggOpusDecoder::handle_opus_tags_packet(const uint8_t* packet_data, size_t packet_len,
-                                                      int64_t granule_pos, bool is_last_on_page) {
-    // Second packet should be OpusTags
-    if (!is_opus_tags(packet_data, packet_len)) {
-        return OGG_OPUS_INPUT_INVALID;
+OggOpusResult OggOpusDecoder::stream_opus_tags(const uint8_t* input, size_t input_len,
+                                               size_t& bytes_consumed) {
+    micro_ogg::OggDemuxState parse_state = ogg_demuxer_->get_next_data(input, input_len);
+    bytes_consumed = parse_state.bytes_consumed;
+
+    if (parse_state.result == micro_ogg::OGG_NEED_MORE_DATA) {
+        return OGG_OPUS_OK;
     }
 
-    if (has_seen_opus_tags_) {
-        return OGG_OPUS_INPUT_INVALID;
+    if (parse_state.result != micro_ogg::OGG_OK) {
+        return handle_demuxer_error(parse_state.result);
     }
-    has_seen_opus_tags_ = true;
 
-    // RFC 7845 Section 5.2: OpusTags MUST NOT exceed 125,829,120 octets
-    opus_tags_accumulated_size_ += packet_len;
+    const uint8_t* data = parse_state.packet.data;
+    size_t data_len = parse_state.packet.length;
+
+    if (state_ == STATE_EXPECT_OPUS_TAGS) {
+        if (has_seen_opus_tags_) {
+            return OGG_OPUS_INPUT_INVALID;
+        }
+
+        has_seen_opus_tags_ = true;
+        opus_tags_magic_len_ = 0;
+        state_ = STATE_STREAMING_OPUS_TAGS;
+    }
+
+    // Accumulate magic signature bytes if we haven't collected all 8 yet
+    if (opus_tags_magic_len_ < 8) {
+        size_t needed = 8 - opus_tags_magic_len_;
+        size_t copy_len = (data_len < needed) ? data_len : needed;
+        memcpy(opus_tags_magic_buf_ + opus_tags_magic_len_, data, copy_len);
+        opus_tags_magic_len_ += static_cast<uint8_t>(copy_len);
+
+        // Validate once we have all 8 bytes
+        if (opus_tags_magic_len_ == 8) {
+            if (!is_opus_tags(opus_tags_magic_buf_, 8)) {
+                return OGG_OPUS_INPUT_INVALID;
+            }
+        }
+    }
+
+    // Track accumulated size (RFC 7845 Section 5.2: max 125,829,120 octets)
+    opus_tags_accumulated_size_ += data_len;
     if (opus_tags_accumulated_size_ > MAX_OPUS_TAGS_SIZE) {
         return OGG_OPUS_INPUT_INVALID;
     }
 
-    // RFC 7845 Section 5.2: Minimum OpusTags size validation
-    if (packet_len < MIN_OPUS_TAGS_SIZE) {
-        return OGG_OPUS_INPUT_INVALID;
-    }
-
-    // RFC 7845 Section 4: OpusTags must be alone on the page where it completes
-    if (is_last_on_page) {
-        if (packets_on_current_page_ != 0) {
-            return OGG_OPUS_INPUT_INVALID;
-        }
-        // Validate granule position for OpusTags page
-        if (granule_pos != 0) {
+    // RFC 7845 Section 4: Granule position must be 0 on all OpusTags pages.
+    // Intermediate continuation pages use -1 (INVALID_GRANULE_POSITION) per RFC 3533.
+    if (parse_state.packet.is_last_on_page) {
+        int64_t gp = parse_state.packet.granule_position;
+        if (gp != 0 && (uint64_t)gp != INVALID_GRANULE_POSITION) {
             return OGG_OPUS_INPUT_INVALID;
         }
     }
-    update_page_tracking(is_last_on_page);
 
-    state_ = STATE_DECODING;
+    // Check if we've reached the end of the OpusTags packet
+    if (parse_state.packet.is_end_of_packet) {
+        // Validate magic was fully received and matched
+        if (opus_tags_magic_len_ < 8 || opus_tags_accumulated_size_ < MIN_OPUS_TAGS_SIZE) {
+            return OGG_OPUS_INPUT_INVALID;
+        }
+
+        // Reset page tracking for audio decoding.
+        // OpusTags was the only packet on its page(s), so start fresh.
+        packets_on_current_page_ = 0;
+
+        state_ = STATE_DECODING;
+    }
+
     return OGG_OPUS_OK;
+}
+
+OggOpusResult OggOpusDecoder::handle_demuxer_error(micro_ogg::OggDemuxResult result) {
+    (void)result;  // May be unused when ESP_PLATFORM is defined
+#ifndef ESP_PLATFORM
+    const char* error_msg = "Unknown error";
+    switch (result) {
+        case micro_ogg::OGG_INVALID_CAPTURE:
+            error_msg = "Invalid Ogg capture pattern";
+            break;
+        case micro_ogg::OGG_INVALID_VERSION:
+            error_msg = "Unsupported Ogg version";
+            break;
+        case micro_ogg::OGG_CRC_FAILED:
+            error_msg = "CRC checksum validation failed";
+            break;
+        case micro_ogg::OGG_STREAM_SEQUENCE_ERROR:
+            error_msg = "Page sequence number mismatch";
+            break;
+        case micro_ogg::OGG_STREAM_BOS_ERROR:
+            error_msg = "BOS flag violation (invalid placement)";
+            break;
+        case micro_ogg::OGG_STREAM_EOS_ERROR:
+            error_msg = "EOS flag violation (EOS with continued packet)";
+            break;
+        case micro_ogg::OGG_STREAM_SERIAL_MISMATCH:
+            error_msg = "Stream serial mismatch (concatenated stream)";
+            break;
+        case micro_ogg::OGG_STREAM_CONTINUATION_ERROR:
+            error_msg = "Continued packet flag inconsistent with previous page";
+            break;
+        case micro_ogg::OGG_ALLOCATION_FAILED:
+            error_msg = "Memory allocation failed";
+            break;
+        default:
+            break;
+    }
+    fprintf(stderr, "OggOpusDecoder: Ogg demuxer error (%d): %s\n", result, error_msg);
+#endif
+    return OGG_OPUS_INPUT_INVALID;
 }
 
 OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, size_t packet_len,
@@ -477,12 +539,11 @@ void OggOpusDecoder::reset() {
     last_required_buffer_bytes_ = 0;
     has_seen_opus_head_ = false;
     has_seen_opus_tags_ = false;
+    opus_tags_magic_len_ = 0;
     opus_tags_accumulated_size_ = 0;
     packets_on_current_page_ = 0;
     first_audio_page_samples_ = -1;  // -1 = not yet on first audio page
     eos_seen_ = false;
-    expect_continued_packet_ = false;
-    previous_packet_was_last_on_page_ = true;  // First packet after reset is on a new page
 }
 
 uint32_t OggOpusDecoder::get_sample_rate() const {
@@ -625,6 +686,11 @@ OggOpusResult OggOpusDecoder::decode(const uint8_t* input, size_t input_len, uin
     bytes_consumed = 0;
     samples_decoded = 0;
 
+    // Stream through OpusTags using get_next_data() to avoid buffering
+    if (state_ == STATE_EXPECT_OPUS_TAGS || state_ == STATE_STREAMING_OPUS_TAGS) {
+        return stream_opus_tags(input, input_len, bytes_consumed);
+    }
+
     // Get next packet from demuxer
     micro_ogg::OggDemuxState parse_state = ogg_demuxer_->get_next_packet(input, input_len);
     bytes_consumed = parse_state.bytes_consumed;
@@ -635,16 +701,6 @@ OggOpusResult OggOpusDecoder::decode(const uint8_t* input, size_t input_len, uin
     }
 
     if (parse_state.result == micro_ogg::OGG_PACKET_SKIPPED) {
-        // Packet was skipped (too large to buffer)
-        // This is acceptable for OpusTags packets - transition to decoding state
-        if (state_ == STATE_EXPECT_OPUS_TAGS) {
-            // OpusTags was skipped due to size (e.g., large album art)
-            // Mark it as seen and transition to decoding state
-            has_seen_opus_tags_ = true;
-            state_ = STATE_DECODING;
-        }
-        // For audio packets, skipping is an error (they shouldn't exceed max_buffer_size)
-        // But the demuxer already validated this, so just return OK
         return OGG_OPUS_OK;
     }
 
@@ -656,39 +712,7 @@ OggOpusResult OggOpusDecoder::decode(const uint8_t* input, size_t input_len, uin
     }
 
     // Demuxer encountered error
-#ifndef ESP_PLATFORM
-    const char* error_msg = "Unknown error";
-    switch (parse_state.result) {
-        case micro_ogg::OGG_INVALID_CAPTURE:
-            error_msg = "Invalid Ogg capture pattern";
-            break;
-        case micro_ogg::OGG_INVALID_VERSION:
-            error_msg = "Unsupported Ogg version";
-            break;
-        case micro_ogg::OGG_CRC_FAILED:
-            error_msg = "CRC checksum validation failed";
-            break;
-        case micro_ogg::OGG_STREAM_SEQUENCE_ERROR:
-            error_msg = "Page sequence number mismatch";
-            break;
-        case micro_ogg::OGG_STREAM_BOS_ERROR:
-            error_msg = "BOS flag violation (invalid placement)";
-            break;
-        case micro_ogg::OGG_STREAM_EOS_ERROR:
-            error_msg = "EOS flag violation (EOS with continued packet)";
-            break;
-        case micro_ogg::OGG_STREAM_SERIAL_MISMATCH:
-            error_msg = "Stream serial mismatch (concatenated stream)";
-            break;
-        case micro_ogg::OGG_ALLOCATION_FAILED:
-            error_msg = "Memory allocation failed";
-            break;
-        default:
-            break;
-    }
-    fprintf(stderr, "OggOpusDecoder: Ogg demuxer error (%d): %s\n", parse_state.result, error_msg);
-#endif
-    return OGG_OPUS_INPUT_INVALID;
+    return handle_demuxer_error(parse_state.result);
 }
 
 #ifdef MICRO_OGG_DEMUXER_DEBUG
