@@ -4,6 +4,8 @@
 
 An embedded-focused wrapper for the Opus audio codec. Designed as an ESP-IDF component with PSRAM support and Xtensa DSP optimizations for ESP32/ESP32-S3.
 
+[![A project from the Open Home Foundation](https://www.openhomefoundation.org/badges/ohf-project.png)](https://www.openhomefoundation.org/)
+
 ## Features
 
 - **Ogg Opus container support**: C++ streaming decoder with zero-copy optimization
