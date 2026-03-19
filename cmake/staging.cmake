@@ -284,6 +284,22 @@ endfunction()
 # ==============================================================================
 function(opus_setup_staged_build COMPONENT_DIR APPLY_XTENSA)
     set(SOURCE_DIR "${COMPONENT_DIR}/lib/opus")
+
+    # Use CMAKE_CURRENT_BINARY_DIR when it is inside the build tree (normal
+    # CMake / idf.py).  PlatformIO's ESP-IDF integration can process this
+    # file before the component has its own binary directory, causing
+    # CMAKE_CURRENT_BINARY_DIR to resolve to the project source directory.
+    # Detect that case and fall back to CMAKE_BINARY_DIR so the staged copy
+    # always lands inside the hidden build folder.
+    # PlatformIO's ESP-IDF integration processes this file twice: once during
+    # an early scan where CMAKE_CURRENT_BINARY_DIR equals CMAKE_SOURCE_DIR
+    # (the project directory), and once during the real build where it points
+    # into .pio/build/.  Skip the first pass so we don't create an opus-staged
+    # directory in the visible project folder.
+    if(ESP_IDF_BUILD AND CMAKE_CURRENT_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
+        return()
+    endif()
+
     set(STAGED_DIR "${CMAKE_CURRENT_BINARY_DIR}/opus-staged")
 
     # Create staging directory
