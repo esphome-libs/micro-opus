@@ -1,6 +1,8 @@
-# ESP32-S3 Opus Decode Benchmark
+# Opus Decode Benchmark
 
 Benchmarks Opus decoding performance by decoding two 30-second Ogg Opus clips in a loop, reporting per-frame timing statistics (min/max/avg/stddev). Tests both CELT (music) and SILK (speech) codecs. Also demonstrates thread-safe concurrent decoding with up to 4 tasks pinned to alternating cores.
+
+Supported targets: **ESP32-S3** (with octal PSRAM) and plain **ESP32** (with quad PSRAM, e.g. WROVER).
 
 ## Features
 
@@ -18,7 +20,7 @@ Benchmarks Opus decoding performance by decoding two 30-second Ogg Opus clips in
 ### Prerequisites
 
 - **PlatformIO** (recommended) OR ESP-IDF v5.0 or later
-- ESP32-S3 development board with PSRAM
+- ESP32-S3 board with octal PSRAM, or plain ESP32 board with quad PSRAM (e.g. WROVER)
 
 ### Option 1: PlatformIO (Recommended)
 
@@ -27,12 +29,17 @@ PlatformIO provides a simplified build process with automatic dependency managem
 ```bash
 cd examples/decode_benchmark
 
-# Build the project
-pio run
+# Build for ESP32-S3 (default/first env)
+pio run -e esp32-s3
+
+# Build for plain ESP32 (WROVER)
+pio run -e esp32
 
 # Upload and monitor
-pio run -t upload -t monitor
+pio run -e esp32-s3 -t upload -t monitor
 ```
+
+Chip-specific sdkconfig defaults live in `sdkconfig.defaults.<target>` (e.g. octal PSRAM and S3 cache tuning for ESP32-S3, quad PSRAM for plain ESP32). Common settings live in `sdkconfig.defaults`.
 
 The PlatformIO configuration uses the parent microOpus repository as a component, so no additional setup is required.
 
@@ -40,10 +47,12 @@ The PlatformIO configuration uses the parent microOpus repository as a component
 
 ```bash
 cd examples/decode_benchmark
-idf.py set-target esp32s3
+idf.py set-target esp32s3   # or: idf.py set-target esp32
 idf.py build
 idf.py flash monitor
 ```
+
+`idf.py set-target` automatically picks up `sdkconfig.defaults.<target>` on top of `sdkconfig.defaults`.
 
 ### Configuration Options
 
