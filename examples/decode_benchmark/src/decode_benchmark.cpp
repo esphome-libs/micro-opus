@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/* ESP32-S3 Opus Decode Benchmark
+/* ESP32 Opus Decode Benchmark
  *
  * Continuously decodes two 30-second Ogg Opus audio clips and reports timing statistics:
  * - MUSIC (CELT codec): High-bitrate stereo orchestral music
@@ -21,7 +21,8 @@
  * Uses OggOpusDecoder to demux and decode the audio streams.
  *
  * Demonstrates thread safety by testing 1-4 concurrent tasks for each audio type,
- * with tasks pinned to alternating CPU cores.
+ * with tasks pinned to alternating CPU cores. (Can be overridden with
+ * the DECODE_BENCH_MAX_CONCURRENT_TASKS define)
  *
  * Each task uses its own OggOpusDecoder instance with the thread-safe pseudostack.
  */
@@ -259,7 +260,7 @@ static void decode_task(void* params) {
 }
 
 extern "C" void app_main(void) {
-    ESP_LOGI(TAG, "=== ESP32-S3 Opus Decode Benchmark ===");
+    ESP_LOGI(TAG, "=== ESP32 Opus Decode Benchmark ===");
     ESP_LOGI(TAG, "Audio types: %d (MUSIC/CELT, SPEECH/SILK)", NUM_AUDIO_TYPES);
     for (int a = 0; a < NUM_AUDIO_TYPES; a++) {
         ESP_LOGI(TAG, "  %s (%s): %zu bytes", AUDIO_CONFIGS[a].name, AUDIO_CONFIGS[a].codec,
