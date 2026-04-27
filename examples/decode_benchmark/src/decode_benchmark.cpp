@@ -44,7 +44,11 @@
 
 static const char* const TAG = "DECODE_BENCH";
 
-static const int MAX_CONCURRENT_TASKS = 4;
+#ifndef DECODE_BENCH_MAX_CONCURRENT_TASKS
+#define DECODE_BENCH_MAX_CONCURRENT_TASKS 4
+#endif
+
+static const int MAX_CONCURRENT_TASKS = DECODE_BENCH_MAX_CONCURRENT_TASKS;
 
 // Audio test configurations
 enum class AudioType : uint8_t {
