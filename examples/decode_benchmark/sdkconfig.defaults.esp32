@@ -9,3 +9,6 @@ CONFIG_SPIRAM_SPEED_80M=y
 # Required on ESP32 rev 1 / ECO3 to work around the PSRAM cache issue.
 # Safe to leave on for all ESP32 revisions.
 CONFIG_SPIRAM_CACHE_WORKAROUND=y
+
+# Opus configuration: use nonthreadsafe pseudostack for performance
+CONFIG_OPUS_NONTHREADSAFE_PSEUDOSTACK=y
