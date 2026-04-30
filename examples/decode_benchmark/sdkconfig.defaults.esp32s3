@@ -1,0 +1,13 @@
+# ESP32-S3 specific overrides.
+
+# Octal PSRAM at 80 MHz (requires ESP32-S3 with octal PSRAM, e.g. N8R8)
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+
+# Takes 7609 ms to decode 30 seconds of audio without these, 5001 ms with these!
+CONFIG_ESP32S3_DATA_CACHE_64KB=y
+CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
+CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y
+
+# Opus configuration: use threadsafe pseudostack for multi-task safety
+CONFIG_OPUS_THREADSAFE_PSEUDOSTACK=y

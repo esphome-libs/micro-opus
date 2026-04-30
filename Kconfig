@@ -220,13 +220,18 @@ menu "Opus Audio Codec"
 
     config OPUS_FLOATING_POINT
         bool "Enable floating-point implementation"
-        default y if IDF_TARGET_ESP32 || IDF_TARGET_ESP32S3
+        default y if IDF_TARGET_ESP32S3
         default n
         help
             Enable floating-point implementation instead of fixed-point.
 
-            Enabled by default only on ESP32 and ESP32-S3 which have hardware FPU.
-            Floating-point is faster on these platforms due to hardware FPU support.
+            Default: enabled on ESP32-S3, disabled elsewhere.
+
+            The ESP32-S3 (Xtensa LX7) has a faster single-precision FPU and
+            benefits from floating-point for CELT (music) decoding. The plain
+            ESP32 (Xtensa LX6) has a slower FPU; benchmarks show fixed-point
+            is faster for both SILK and CELT on ESP32, so fixed-point is the
+            default there.
 
             Can be enabled on other platforms if they have FPU support. The user
             is responsible to set this appropriately for their specific target.

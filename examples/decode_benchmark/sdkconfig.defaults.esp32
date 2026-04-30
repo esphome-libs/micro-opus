@@ -1,0 +1,14 @@
+# Plain ESP32 specific overrides.
+# Targets WROVER-style modules with quad PSRAM (e.g. ESP32-WROVER-E).
+
+# Quad PSRAM at 80 MHz. Requires flash configured in QIO mode.
+# Drop to 40M if using a flash that cannot run at 80MHz with PSRAM.
+CONFIG_SPIRAM_MODE_QUAD=y
+CONFIG_SPIRAM_SPEED_80M=y
+
+# Required on ESP32 rev 1 / ECO3 to work around the PSRAM cache issue.
+# Safe to leave on for all ESP32 revisions.
+CONFIG_SPIRAM_CACHE_WORKAROUND=y
+
+# Opus configuration: use nonthreadsafe pseudostack for performance
+CONFIG_OPUS_NONTHREADSAFE_PSEUDOSTACK=y

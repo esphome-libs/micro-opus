@@ -18,7 +18,7 @@ An embedded-focused wrapper for the Opus audio codec. Designed as an ESP-IDF com
 
 | Target | Default | Notes |
 | ------ | ------- | ----- |
-| ESP32 | Floating-point + Xtensa DSP | Fixed-point optional via menuconfig |
+| ESP32 | Fixed-point + Xtensa DSP | Fixed-point optional via menuconfig |
 | ESP32-S3 | Floating-point + Xtensa DSP | Fixed-point optional via menuconfig |
 | ESP32-C3 | Fixed-point | RISC-V architecture |
 | ESP32-C6 | Fixed-point | RISC-V architecture |
@@ -210,7 +210,7 @@ Performance varies with bitrate, complexity, sample rate, and cache configuratio
 
 ### Fixed-Point vs Floating-Point
 
-**Decoding**: CELT (music) takes roughly 4x more CPU than SILK (speech) to decode. ESP32 and ESP32-S3 default to floating-point, which is ~9% faster for CELT with a single decode task. However, fixed-point is ~22% faster for SILK. With multiple concurrent decode tasks, fixed-point becomes faster for CELT as well due to FPU contention. Consider fixed-point mode for speech-only applications or when running multiple concurrent decoders.
+**Decoding**: CELT (music) takes roughly 4x more CPU than SILK (speech) to decode. ESP32-S3 defaults to floating-point, which is ~9% faster for CELT with a single decode task. However, fixed-point is ~22% faster for SILK. With multiple concurrent decode tasks, fixed-point becomes faster for CELT as well due to FPU contention. Consider fixed-point mode for speech-only applications or when running multiple concurrent decoders.
 
 **Encoding**: Fixed-point is strongly recommended for encoding on ESP32-S3. SILK encoding with floating-point is 4-6x slower than fixed-point and fails to achieve real-time at even the lowest complexity settings. CELT encoding is only ~10-40% slower with floating-point. See the [encode benchmark](examples/encode_benchmark) for detailed performance comparisons.
 
