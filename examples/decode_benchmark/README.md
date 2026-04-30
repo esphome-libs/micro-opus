@@ -1,6 +1,6 @@
 # Opus Decode Benchmark
 
-Benchmarks Opus decoding performance by decoding two 30-second Ogg Opus clips in a loop, reporting per-frame timing statistics (min/max/avg/stddev). Tests both CELT (music) and SILK (speech) codecs. Also demonstrates thread-safe concurrent decoding with up to 4 tasks pinned to alternating cores.
+Benchmarks Opus decoding performance by decoding two 30-second Ogg Opus clips in a loop, reporting per-frame timing statistics (min/max/avg/stddev). Tests both CELT (music) and SILK (speech) codecs. On the ESP32-S3 it also demonstrates thread-safe concurrent decoding with up to 4 tasks pinned to alternating cores; the plain ESP32 runs a single task only.
 
 Supported targets: **ESP32-S3** (with octal PSRAM) and plain **ESP32** (with quad PSRAM, e.g. WROVER).
 
@@ -11,9 +11,9 @@ Supported targets: **ESP32-S3** (with octal PSRAM) and plain **ESP32** (with qua
   - **SPEECH (SILK)**: Low-bitrate mono spoken word (~38KB)
 - Per-frame timing with statistical analysis
 - Interleaved testing of both audio types
-- Thread safety demonstration with 1, 2, 3, and 4 concurrent decode tasks
+- Thread safety demonstration with 1, 2, 3, and 4 concurrent decode tasks (ESP32-S3 only; plain ESP32 runs 1 task)
 - Tasks pinned to alternating cores (task 0 → core 0, task 1 → core 1, etc.)
-- Pre-configured for maximum performance (240MHz, PSRAM, floating-point)
+- Pre-configured for maximum performance (240MHz, PSRAM; floating-point on ESP32-S3, fixed-point on plain ESP32)
 
 ## Building and Flashing
 
@@ -78,7 +78,7 @@ Navigate to **Component config → Opus Audio Codec** to adjust:
 
 ## Expected Output
 
-Each iteration tests both audio types (MUSIC and SPEECH) with 1, 2, 3, and 4 concurrent tasks:
+Each iteration tests both audio types (MUSIC and SPEECH). On ESP32-S3 the test runs at 1, 2, 3, and 4 concurrent tasks; on plain ESP32 it runs a single task only. Sample S3 output:
 
 ```text
 I (1045) DECODE_BENCH: --- MUSIC (CELT) - 1 concurrent task ---
@@ -140,6 +140,19 @@ The benchmark shows how performance scales with concurrent tasks on the dual-cor
 
 With 2 tasks (one per core), total throughput nearly doubles while wall-clock time only increases ~40% for CELT and ~9% for SILK. SILK decoding is significantly faster than CELT due to lower bitrate and mono audio.
 
+### Plain ESP32 Results
+
+The plain ESP32 (LX6 cores, no fast FPU usable from Opus's tight loops, quad PSRAM) is significantly slower than the S3. The benchmark only runs a single concurrent task on this target. Concurrent decoding with the threadsafe pseudostack does not fit, so the default config uses `NONTHREADSAFE_PSEUDOSTACK` and limits the test to 1 task.
+
+Defaults: 240MHz, fixed-point, NONTHREADSAFE_PSEUDOSTACK, pseudostack in PSRAM.
+
+| Codec | Wall-clock | Per-task RTF | Avg frame |
+| ----- | ---------- | ------------ | --------- |
+| MUSIC (CELT, stereo 128kbit/s) | 22.1s | 0.736 (1.4x) | 14658 us |
+| SPEECH (SILK, mono 10kbit/s) | 2.9s | 0.095 (10.5x) | 1893 us |
+
+CELT decoding still keeps up with real-time playback, but with very little headroom (~36% margin per stream). SILK has plenty of headroom for real-time speech use cases.
+
 ### Floating-point vs Fixed-point
 
 The ESP32-S3 has a hardware FPU, and Opus can be built in either floating-point (default) or fixed-point mode:
@@ -174,7 +187,7 @@ The ESP32-S3 has a hardware FPU, and Opus can be built in either floating-point 
 
 ## Thread Safety
 
-This example demonstrates the thread-safe pseudostack feature. Each FreeRTOS task:
+On the ESP32-S3 this example demonstrates the thread-safe pseudostack feature. Each FreeRTOS task:
 
 - Creates its own `OggOpusDecoder` instance
 - Gets its own 120KB pseudostack via thread-local storage
@@ -183,15 +196,20 @@ This example demonstrates the thread-safe pseudostack feature. Each FreeRTOS tas
 
 The concurrent decode shows all tasks running simultaneously with correct results, verifying the thread-local pseudostack works correctly for multi-threaded applications.
 
-**Memory usage with concurrent tasks:**
+**Memory usage with concurrent tasks (ESP32-S3):**
 
 - Each task needs its own 120KB pseudostack
 - With 4 concurrent tasks: 480KB total pseudostack memory
 - Plus 8KB FreeRTOS stack per task
 
+The plain ESP32 build does not exercise concurrent decoding. It uses `NONTHREADSAFE_PSEUDOSTACK` (a single shared 120KB pseudostack) and limits the benchmark to one task. Concurrent decoding with the threadsafe pseudostack does not fit in available memory and FPU/cache contention from a second task wipes out any throughput gain.
+
 ## Configuration
 
-The default configuration uses 240MHz, floating-point, THREADSAFE_PSEUDOSTACK, and pseudostack in PSRAM.
+Defaults vary by target:
+
+- **ESP32-S3**: 240MHz, floating-point, THREADSAFE_PSEUDOSTACK, pseudostack in PSRAM, up to 4 concurrent tasks.
+- **Plain ESP32**: 240MHz, fixed-point, NONTHREADSAFE_PSEUDOSTACK, pseudostack in PSRAM, 1 concurrent task only. Floating-point is not enabled by default. The LX6's FPU is slower for Opus's tight loops than the optimized fixed-point paths.
 
 To reduce PSRAM usage, set pseudostack to prefer internal RAM via menuconfig (better performance but uses 120KB internal RAM per thread).
 
@@ -242,7 +260,7 @@ Keep clips ~30 seconds to fit in flash. For ESP-IDF builds, use `main/` instead 
 | Decoder state | ~80-150KB | PSRAM preferred |
 | Pseudostack | 120KB per thread | PSRAM by default |
 
-With 4 concurrent decode tasks, expect ~480KB for pseudostacks plus decoder state.
+On ESP32-S3 with 4 concurrent decode tasks, expect ~480KB for pseudostacks plus decoder state. On plain ESP32 the single task uses one 120KB pseudostack.
 
 ## Troubleshooting
 
@@ -251,7 +269,7 @@ With 4 concurrent decode tasks, expect ~480KB for pseudostacks plus decoder stat
 | Watchdog timeout | Disable in menuconfig: Component config → ESP System Settings → Task Watchdog |
 | Stack overflow | Increase task stack size |
 | Allocation failures | Check PSRAM is enabled, reduce pseudostack size, or set state to prefer PSRAM |
-| Concurrent decode fails | Ensure THREADSAFE_PSEUDOSTACK is enabled (default) |
+| Concurrent decode fails | Ensure THREADSAFE_PSEUDOSTACK is enabled (default on ESP32-S3; plain ESP32 defaults to NONTHREADSAFE and only supports a single decoder) |
 
 ## Technical Details
 
