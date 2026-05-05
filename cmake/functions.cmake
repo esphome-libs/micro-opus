@@ -40,5 +40,11 @@ function(opus_set_optimization_flags TARGET)
         -O2
         -ffunction-sections
         -fdata-sections
+        # GCC 14+ emits a false-positive -Wmaybe-uninitialized in upstream
+        # silk/NLSF2A.c: cos_LSF_QA[] is filled via a permutation table the
+        # analyzer can't reason about. Demote to a non-fatal warning so
+        # consumers building with -Werror=all (e.g. ESP-IDF defaults) don't
+        # break. Remove once upstream xiph/opus silences this.
+        -Wno-error=maybe-uninitialized
     )
 endfunction()
