@@ -97,11 +97,14 @@ int main() {
     // max_output_bytes is the 120 ms upper bound: 48000/1000*120 = 5760 samples/ch.
     check(fmt.max_output_bytes() == 5760u * kChannels * 2u, "format max_output_bytes");
 
-    std::vector<uint8_t> out(fmt.max_output_bytes());
+    // int16_t output buffer: naturally aligned for the decoder's 16-bit PCM writes. The API stays
+    // byte-oriented, so cast to uint8_t* and pass the size in bytes at each call site.
+    std::vector<int16_t> out(fmt.max_output_bytes() / sizeof(int16_t));
     for (size_t i = 0; i < packets.size(); ++i) {
         size_t bytes_written = 0;
-        auto result = decoder.decode(packets[i].data(), packets[i].size(), out.data(), out.size(),
-                                     bytes_written);
+        auto result = decoder.decode(packets[i].data(), packets[i].size(),
+                                     reinterpret_cast<uint8_t*>(out.data()),
+                                     out.size() * sizeof(int16_t), bytes_written);
         check(result == micro_opus::OPUS_PACKET_DECODER_SUCCESS, "decode succeeds");
         check(bytes_written == kFrameBytes, "decode bytes_written == one 20 ms stereo frame");
     }
@@ -109,18 +112,20 @@ int main() {
     // --- Recoverable OUTPUT_BUFFER_TOO_SMALL: tiny buffer, then grow and retry ---
     {
         size_t bytes_written = 12345;
-        std::vector<uint8_t> tiny(16);
-        auto result = decoder.decode(packets[0].data(), packets[0].size(), tiny.data(), tiny.size(),
-                                     bytes_written);
+        std::vector<int16_t> tiny(8);  // 16 bytes: far too small for one frame
+        auto result = decoder.decode(packets[0].data(), packets[0].size(),
+                                     reinterpret_cast<uint8_t*>(tiny.data()),
+                                     tiny.size() * sizeof(int16_t), bytes_written);
         check(result == micro_opus::OPUS_PACKET_DECODER_ERROR_OUTPUT_BUFFER_TOO_SMALL,
               "small buffer => OUTPUT_BUFFER_TOO_SMALL");
         check(bytes_written == 0, "failed decode clears bytes_written");
         size_t needed = decoder.get_required_output_bytes();
         check(needed == kFrameBytes, "get_required_output_bytes reports exact size");
 
-        std::vector<uint8_t> grown(needed);
-        result = decoder.decode(packets[0].data(), packets[0].size(), grown.data(), grown.size(),
-                                bytes_written);
+        std::vector<int16_t> grown(needed / sizeof(int16_t));
+        result = decoder.decode(packets[0].data(), packets[0].size(),
+                                reinterpret_cast<uint8_t*>(grown.data()),
+                                grown.size() * sizeof(int16_t), bytes_written);
         check(result == micro_opus::OPUS_PACKET_DECODER_SUCCESS, "retry after grow succeeds");
         check(bytes_written == kFrameBytes, "retry produces full frame");
     }
@@ -128,7 +133,9 @@ int main() {
     // --- Packet-loss concealment ---
     {
         size_t bytes_written = 0;
-        auto result = decoder.conceal_loss(out.data(), out.size(), kFrameSamples, bytes_written);
+        auto result =
+            decoder.conceal_loss(reinterpret_cast<uint8_t*>(out.data()),
+                                 out.size() * sizeof(int16_t), kFrameSamples, bytes_written);
         check(result == micro_opus::OPUS_PACKET_DECODER_SUCCESS, "conceal_loss succeeds");
         check(bytes_written == kFrameBytes, "conceal_loss fills one frame");
     }
@@ -136,13 +143,15 @@ int main() {
     // --- Invalid arguments ---
     {
         size_t bytes_written = 7;
-        auto null_input = decoder.decode(nullptr, 10, out.data(), out.size(), bytes_written);
+        auto null_input = decoder.decode(nullptr, 10, reinterpret_cast<uint8_t*>(out.data()),
+                                         out.size() * sizeof(int16_t), bytes_written);
         check(null_input == micro_opus::OPUS_PACKET_DECODER_ERROR_INPUT_INVALID,
               "null input => INPUT_INVALID");
         check(bytes_written == 0, "invalid call clears bytes_written");
 
         auto empty_input =
-            decoder.decode(packets[0].data(), 0, out.data(), out.size(), bytes_written);
+            decoder.decode(packets[0].data(), 0, reinterpret_cast<uint8_t*>(out.data()),
+                           out.size() * sizeof(int16_t), bytes_written);
         check(empty_input == micro_opus::OPUS_PACKET_DECODER_ERROR_INPUT_INVALID,
               "empty input => INPUT_INVALID");
     }
@@ -153,8 +162,9 @@ int main() {
         check(decoder.get_required_output_bytes() == 0, "reset clears required_output_bytes");
         check(decoder.get_pcm_format().sample_rate() == kSampleRate, "reset preserves config");
         size_t bytes_written = 0;
-        auto result = decoder.decode(packets[0].data(), packets[0].size(), out.data(), out.size(),
-                                     bytes_written);
+        auto result = decoder.decode(packets[0].data(), packets[0].size(),
+                                     reinterpret_cast<uint8_t*>(out.data()),
+                                     out.size() * sizeof(int16_t), bytes_written);
         check(result == micro_opus::OPUS_PACKET_DECODER_SUCCESS, "decode works after reset");
         check(bytes_written == kFrameBytes, "post-reset frame size");
     }

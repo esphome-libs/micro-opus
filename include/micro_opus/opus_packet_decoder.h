@@ -90,24 +90,27 @@ public:
     /// sample_rate / 1000 * 120 samples per channel. Allocate this many bytes and decode() never
     /// returns OPUS_PACKET_DECODER_ERROR_OUTPUT_BUFFER_TOO_SMALL; pass it directly as decode()'s
     /// output_size_bytes.
-    /// @return Output buffer size in bytes (all channels), or 0 before the format is set
+    /// @return Output buffer size in bytes (all channels)
     uint32_t max_output_bytes() const {
         return (this->sample_rate_ / 1000u * 120u) * this->num_channels_ * this->bytes_per_sample();
     }
     /// @brief Number of output channels (1 = mono, 2 = stereo)
-    /// @return Output channel count, or 0 before the format is set
+    /// @return Output channel count
     uint32_t num_channels() const {
         return this->num_channels_;
     }
     /// @brief Output sample rate in Hz (8000, 12000, 16000, 24000, or 48000)
-    /// @return Sample rate in Hz, or 0 before the format is set
+    /// @return Sample rate in Hz
     uint32_t sample_rate() const {
         return this->sample_rate_;
     }
-    /// @brief Whether the PCM format has been populated (true immediately after construction)
-    /// @return true once the PCM format is available
+    /// @brief Whether the stream's PCM format is known
+    ///
+    /// Always true for this decoder: the format is supplied at construction, so it is known as soon
+    /// as the object exists.
+    /// @return true (the format is always available once constructed)
     bool is_valid() const {
-        return this->sample_rate_ != 0;
+        return true;
     }
 };
 
@@ -151,17 +154,20 @@ public:
  * micro_opus::OpusPacketDecoder decoder(48000, 2);  // 48 kHz stereo
  *
  * const auto& fmt = decoder.get_pcm_format();
- * std::vector<uint8_t> pcm(fmt.max_output_bytes());
+ * // int16_t buffer: naturally aligned for the decoder's 16-bit PCM output. The API stays byte-
+ * // oriented, so cast to uint8_t* and pass the size in bytes at the call site.
+ * std::vector<int16_t> pcm(fmt.max_output_bytes() / sizeof(int16_t));
  *
  * for (const Packet& p : packets) {
  *     size_t bytes_written = 0;
- *     auto result = decoder.decode(p.data, p.size, pcm.data(), pcm.size(), bytes_written);
+ *     auto result = decoder.decode(p.data, p.size, reinterpret_cast<uint8_t*>(pcm.data()),
+ *                                  pcm.size() * sizeof(int16_t), bytes_written);
  *     if (result < 0) {
  *         break;  // With the buffer sized above, OUTPUT_BUFFER_TOO_SMALL never fires
  *     }
  *     // bytes_written is the total across all channels; e.g. a 20 ms stereo packet at 48 kHz
  *     // is 960 frames => 1920 samples => 3840 bytes.
- *     process_audio(reinterpret_cast<int16_t*>(pcm.data()), bytes_written / sizeof(int16_t));
+ *     process_audio(pcm.data(), bytes_written / sizeof(int16_t));
  * }
  * @endcode
  */
