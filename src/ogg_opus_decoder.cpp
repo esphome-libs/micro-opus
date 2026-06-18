@@ -18,6 +18,7 @@
 
 #include "micro_opus/ogg_opus_decoder.h"
 
+#include "micro_opus/opus_packet_decoder.h"
 #include "opus.h"
 #include "opus_header.h"
 #include "opus_multistream.h"
@@ -67,6 +68,24 @@ const size_t MAX_OPUS_TAGS_SIZE = 125829120;
 // RFC 7845 Section 5.2: Minimum OpusTags size
 // Must contain: magic(8) + vendor_length(4) + user_comment_count(4) = 16 bytes
 const size_t MIN_OPUS_TAGS_SIZE = 16;
+
+// Translate a raw-packet-decoder result into the Ogg wrapper's result code.
+OggOpusResult map_packet_decoder_result(OpusPacketResult result) {
+    switch (result) {
+        case OPUS_PACKET_DECODER_SUCCESS:
+            return OGG_OPUS_OK;
+        case OPUS_PACKET_DECODER_ERROR_OUTPUT_BUFFER_TOO_SMALL:
+            return OGG_OPUS_OUTPUT_BUFFER_TOO_SMALL;
+        case OPUS_PACKET_DECODER_ERROR_ALLOCATION_FAILED:
+            return OGG_OPUS_ALLOCATION_FAILED;
+        case OPUS_PACKET_DECODER_ERROR_INPUT_INVALID:
+            return OGG_OPUS_INPUT_INVALID;
+        // DECODE_FAILED and any unhandled or future result map to a decode error.
+        case OPUS_PACKET_DECODER_ERROR_DECODE_FAILED:
+        default:
+            return OGG_OPUS_DECODE_ERROR;
+    }
+}
 }  // namespace
 
 OggOpusResult OggOpusDecoder::process_packet(const micro_ogg::OggPacket& packet, uint8_t* output,
@@ -140,15 +159,11 @@ OggOpusResult OggOpusDecoder::validate_granule_position(int64_t granule_pos, siz
 OggOpusResult OggOpusDecoder::create_opus_decoder(uint8_t output_channels) {
     int error = 0;
     if (opus_head_->channel_mapping == 0) {
-        opus_decoder_ = opus_decoder_create(sample_rate_, output_channels, &error);
-
-        if (error != OPUS_OK || !opus_decoder_) {
-            return OGG_OPUS_ALLOCATION_FAILED;
-        }
-
-        if (opus_head_->output_gain != 0) {
-            opus_decoder_ctl(opus_decoder_, OPUS_SET_GAIN((opus_int32)opus_head_->output_gain));
-        }
+        // Mono/stereo: delegate decoding to the raw-packet decoder. Construction never allocates or
+        // fails; the libopus state is created lazily on the first decode(), so an allocation
+        // failure surfaces on the first audio packet rather than here.
+        packet_decoder_ = std::make_unique<OpusPacketDecoder>(sample_rate_, output_channels);
+        packet_decoder_->set_output_gain(opus_head_->output_gain);
     } else {
         opus_ms_decoder_ = opus_multistream_decoder_create(
             sample_rate_, output_channels, opus_head_->stream_count, opus_head_->coupled_count,
@@ -361,31 +376,32 @@ OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, si
         }
     }
 
-    size_t max_samples = output_size / (output_channels_ * sizeof(int16_t));
-    int max_frame_size = (int)std::min(max_samples, (size_t)INT_MAX);
-
-    // Decode Opus packet
-    // Cast uint8_t* output buffer to int16_t* for the Opus decoder
-    int16_t* pcm_output = reinterpret_cast<int16_t*>(output);
-    int decoded_samples_int = 0;
-    if (opus_decoder_) {
-        decoded_samples_int = opus_decode(opus_decoder_, packet_data, (opus_int32)packet_len,
-                                          pcm_output, max_frame_size,
-                                          0  // No FEC
-        );
+    // Decode the packet into the caller's buffer. Mono/stereo go through the raw-packet decoder;
+    // multistream (channel mapping family 1) uses libopus's multistream API directly. The
+    // buffer-size check above means the raw-packet decoder never reports OUTPUT_BUFFER_TOO_SMALL.
+    size_t decoded_samples_size = 0;
+    if (packet_decoder_) {
+        size_t bytes_written = 0;
+        OpusPacketResult packet_result =
+            packet_decoder_->decode(packet_data, packet_len, output, output_size, bytes_written);
+        if (packet_result != OPUS_PACKET_DECODER_SUCCESS) {
+            return map_packet_decoder_result(packet_result);
+        }
+        decoded_samples_size = bytes_written / (output_channels_ * sizeof(int16_t));
     } else if (opus_ms_decoder_) {
-        decoded_samples_int = opus_multistream_decode(
-            opus_ms_decoder_, packet_data, (opus_int32)packet_len, pcm_output, max_frame_size,
-            0  // No FEC
-        );
+        size_t max_samples = output_size / (output_channels_ * sizeof(int16_t));
+        int max_frame_size = (int)std::min(max_samples, (size_t)INT_MAX);
+        int decoded_samples_int = opus_multistream_decode(
+            opus_ms_decoder_, packet_data, (opus_int32)packet_len,
+            reinterpret_cast<int16_t*>(output), max_frame_size, 0 /* No FEC */);
+        if (decoded_samples_int < 0) {
+            return OGG_OPUS_DECODE_ERROR;
+        }
+        decoded_samples_size = (size_t)decoded_samples_int;
     } else {
+        // Unreachable in STATE_DECODING: create_opus_decoder() always sets one backend.
         return OGG_OPUS_NOT_INITIALIZED;
     }
-
-    if (decoded_samples_int < 0) {
-        return OGG_OPUS_DECODE_ERROR;
-    }
-    size_t decoded_samples_size = (size_t)decoded_samples_int;
 
     update_page_tracking(is_last_on_page);
 
@@ -497,24 +513,18 @@ OggOpusDecoder::OggOpusDecoder(bool enable_crc, uint32_t sample_rate, uint8_t ch
 }
 
 OggOpusDecoder::~OggOpusDecoder() {
-    if (opus_decoder_) {
-        opus_decoder_destroy(opus_decoder_);
-        opus_decoder_ = nullptr;
-    }
-
     if (opus_ms_decoder_) {
         opus_multistream_decoder_destroy(opus_ms_decoder_);
         opus_ms_decoder_ = nullptr;
     }
 
-    // ogg_demuxer_ and opus_head_ are automatically cleaned up by unique_ptr
+    // packet_decoder_, ogg_demuxer_, and opus_head_ are automatically cleaned up by unique_ptr
 }
 
 void OggOpusDecoder::reset() {
-    if (opus_decoder_) {
-        opus_decoder_destroy(opus_decoder_);
-        opus_decoder_ = nullptr;
-    }
+    // Drop the mono/stereo backend; a new one is built on the next OpusHead with that stream's
+    // channel count and gain.
+    packet_decoder_.reset();
 
     if (opus_ms_decoder_) {
         opus_multistream_decoder_destroy(opus_ms_decoder_);
