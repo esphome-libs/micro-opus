@@ -49,6 +49,18 @@ void OpusPacketDecoder::reset() {
 }
 
 // ============================================================================
+// Configuration
+// ============================================================================
+
+void OpusPacketDecoder::set_output_gain(int16_t output_gain) {
+    this->output_gain_ = output_gain;
+    // Apply now if the decoder already exists; otherwise ensure_decoder() applies it on creation.
+    if (this->opus_decoder_ != nullptr) {
+        opus_decoder_ctl(this->opus_decoder_, OPUS_SET_GAIN(static_cast<opus_int32>(output_gain)));
+    }
+}
+
+// ============================================================================
 // Core Decoding API
 // ============================================================================
 
@@ -145,6 +157,13 @@ OpusPacketResult OpusPacketDecoder::ensure_decoder() {
         // constructor; anything else (e.g. OPUS_ALLOC_FAIL) is an out-of-memory condition.
         return (error == OPUS_BAD_ARG) ? OPUS_PACKET_DECODER_ERROR_INPUT_INVALID
                                        : OPUS_PACKET_DECODER_ERROR_ALLOCATION_FAILED;
+    }
+
+    // Apply any gain set before allocation (e.g. a forwarded OpusHead output_gain).
+    // Unity gain (0) is the libopus default, so skip the ctl.
+    if (this->output_gain_ != 0) {
+        opus_decoder_ctl(this->opus_decoder_,
+                         OPUS_SET_GAIN(static_cast<opus_int32>(this->output_gain_)));
     }
     return OPUS_PACKET_DECODER_SUCCESS;
 }

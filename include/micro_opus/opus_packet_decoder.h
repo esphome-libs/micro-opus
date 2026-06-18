@@ -202,6 +202,23 @@ public:
     void reset();
 
     // ========================================
+    // Configuration
+    // ========================================
+
+    /// @brief Apply a fixed output gain to all decoded audio (Ogg Opus OpusHead "output gain")
+    ///
+    /// Sets a gain that libopus applies to every decoded frame, matching the OpusHead output_gain
+    /// field (Q7.8 dB: the stored value divided by 256 gives dB). A raw Opus stream carries no such
+    /// field, so it defaults to 0 (unity gain); it exists so a container parser like OggOpusDecoder
+    /// can forward the header value.
+    ///
+    /// Takes effect on the next decoder allocation, or immediately if the decoder already exists.
+    /// The gain is preserved across reset() (libopus keeps it through OPUS_RESET_STATE).
+    ///
+    /// @param output_gain Output gain in Q7.8 dB units (0 = unity gain)
+    void set_output_gain(int16_t output_gain);
+
+    // ========================================
     // Core Decoding API
     // ========================================
 
@@ -306,6 +323,11 @@ private:
 
     // Output byte count (all channels) the last packet needs
     size_t required_output_bytes_{0};
+
+    // 16-bit fields
+
+    // Fixed output gain (Q7.8 dB) applied via OPUS_SET_GAIN; 0 = unity. From set_output_gain().
+    int16_t output_gain_{0};
 };
 
 }  // namespace micro_opus

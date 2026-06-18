@@ -26,7 +26,6 @@
 #include <memory>
 
 // Forward declarations to avoid exposing implementation details
-struct OpusDecoder;
 struct OpusMSDecoder;
 
 // Forward declaration from micro_ogg namespace
@@ -43,6 +42,7 @@ constexpr uint32_t OPUS_DEFAULT_SAMPLE_RATE = 48000;  // Opus always decodes at 
 
 // Forward declarations
 struct OpusHead;
+class OpusPacketDecoder;
 
 /**
  * @brief Result codes for OggOpusDecoder operations
@@ -91,13 +91,16 @@ enum OggOpusResult : int8_t {
  *          threads without external synchronization.
  *
  * @note Lazy Allocation: The constructor always succeeds and does not allocate
- *       any resources. All allocations (OggDemuxer buffers, OpusHead, and Opus
- *       decoder instance) are deferred until the first call to decode().
+ *       any resources. Allocation is deferred to decode() and staged as the
+ *       stream is parsed: the OggDemuxer buffers on the first call, OpusHead when
+ *       the header is parsed, and the Opus decoder state once audio decoding
+ *       begins. For mono/stereo the libopus decoder state is created on the first
+ *       audio packet; for multistream it is created when OpusHead is parsed.
  *
- *       **First decode() call**: May return OGG_OPUS_ALLOCATION_FAILED if memory
- *       allocation fails (PSRAM or internal RAM). If this occurs, the decoder
- *       remains in an uninitialized state, and subsequent calls will retry
- *       allocation.
+ *       **While allocating**: Any of these early decode() calls may return
+ *       OGG_OPUS_ALLOCATION_FAILED if memory allocation fails (PSRAM or internal
+ *       RAM). The decoder leaves that resource uninitialized, and subsequent
+ *       calls retry the allocation.
  *
  *       **Subsequent calls**: Once allocation succeeds, decode() will never
  *       return OGG_OPUS_ALLOCATION_FAILED again unless reset() is called.
@@ -147,7 +150,8 @@ public:
      * @brief Construct a new Ogg Opus Decoder
      *
      * The constructor always succeeds and does not allocate any resources.
-     * All allocations are deferred to the first call to decode().
+     * All allocations are deferred to decode() and staged as the stream is
+     * parsed (see the class-level Lazy Allocation note).
      *
      * @param enable_crc Enable CRC32 validation of Ogg pages (default false)
      * @param sample_rate Output sample rate in Hz. Must be one of: 8000, 12000,
@@ -156,8 +160,8 @@ public:
      * @param channels Output channel count. 0 = use file's channel count (default).
      *                 1 = mono, 2 = stereo. The Opus decoder handles mixing/duplication.
      *
-     * @note This constructor is guaranteed not to fail. Resource allocation
-     *       is deferred to the first decode() call, which can return
+     * @note This constructor is guaranteed not to fail. Resource allocation is
+     *       deferred to decode(), where any of the early calls can return
      *       OGG_OPUS_ALLOCATION_FAILED if memory allocation fails.
      *
      * @note CRC Validation: When enabled, all Ogg pages are validated
@@ -193,15 +197,18 @@ public:
      * @return OggOpusResult result code
      *         - 0 (OGG_OPUS_OK): Success (check samples_decoded to see if you got samples)
      *         - Negative values: Error occurred
-     *           - OGG_OPUS_ALLOCATION_FAILED: Memory allocation failed (first call only)
+     *           - OGG_OPUS_ALLOCATION_FAILED: Memory allocation failed (during stream
+     *             initialization or, for mono/stereo, on the first audio packet)
      *           - OGG_OPUS_OUTPUT_BUFFER_TOO_SMALL: Output buffer too small
      *           - OGG_OPUS_INPUT_INVALID: Invalid stream
      *           - OGG_OPUS_DECODE_*: Opus decode errors (see OggOpusResult enum)
      *
-     * @note **Lazy Allocation**: On the first call, this method allocates internal
-     *       resources (~128KB, preferring PSRAM on ESP32). If allocation fails,
-     *       returns OGG_OPUS_ALLOCATION_FAILED and decoder remains uninitialized.
-     *       Subsequent calls will retry allocation until it succeeds.
+     * @note **Lazy Allocation**: The early decode() calls allocate internal
+     *       resources (~128KB total, preferring PSRAM on ESP32) as the stream is
+     *       parsed: the demuxer first, then the Opus decoder state once audio
+     *       decoding begins (deferred to the first audio packet for mono/stereo).
+     *       If an allocation fails, returns OGG_OPUS_ALLOCATION_FAILED and leaves
+     *       that resource uninitialized; subsequent calls retry until it succeeds.
      *
      * @note **Parameter Validation**: Both input and output pointers must be valid
      *       (non-null). Passing nullptr for either parameter will return
@@ -300,14 +307,14 @@ public:
     /**
      * @brief Reset the decoder state
      *
-     * Resets all internal state, allowing the decoder to be reused
-     * for a new stream. This does NOT deallocate internal buffers -
-     * they are preserved for reuse. After calling reset(), the next
-     * decode() call will NOT return OGG_OPUS_ALLOCATION_FAILED unless
-     * the decoder was never successfully initialized.
+     * Resets all internal state, allowing the decoder to be reused for a new
+     * stream. The OggDemuxer and its buffers are preserved for reuse, but the
+     * Opus decoder state is dropped and rebuilt from the next stream's OpusHead.
+     * Because of that rebuild, a subsequent decode() can still return
+     * OGG_OPUS_ALLOCATION_FAILED (for mono/stereo, on the first audio packet).
      *
-     * @note Preserves allocated buffers for efficiency. To fully release
-     *       memory, destroy the decoder instance.
+     * @note Preserves the demuxer's allocated buffers for efficiency. To fully
+     *       release memory, destroy the decoder instance.
      */
     void reset();
 
@@ -394,11 +401,10 @@ private:
     // Opus header info
     std::unique_ptr<OpusHead> opus_head_;
 
-    // Opus decoder instances (C API handles - managed with create/destroy)
-    // Only one of these will be non-null at a time:
-    // - opus_decoder_ for channel_mapping == 0 (mono/stereo)
-    // - opus_ms_decoder_ for channel_mapping != 0 (multistream with channel mapping)
-    OpusDecoder* opus_decoder_{nullptr};
+    // Opus decode backends. Only one is active at a time, selected by channel mapping family:
+    // - packet_decoder_ for channel_mapping == 0 (mono/stereo), via the raw-packet decoder
+    // - opus_ms_decoder_ for channel_mapping != 0 (multistream with a channel mapping table)
+    std::unique_ptr<OpusPacketDecoder> packet_decoder_;
     OpusMSDecoder* opus_ms_decoder_{nullptr};
 
     // --- 64-bit members ---
