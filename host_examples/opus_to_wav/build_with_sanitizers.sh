@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build opus_to_wav and tests with AddressSanitizer and UndefinedBehaviorSanitizer
+# Build opus_to_wav with AddressSanitizer and UndefinedBehaviorSanitizer
 
 set -e
 
@@ -13,8 +13,5 @@ cmake -DENABLE_SANITIZERS=ON ..
 cmake --build .
 
 echo ""
-echo "Build complete. Run tests with:"
-echo "  ./opus_to_wav input.opus output.wav"
-echo "  ./test_chunked input.opus"
-echo "  ./test_silent_channels"
-echo "  ./measure_zerocopy input.opus"
+echo "Build complete. Run the example with:"
+echo "  ./build/opus_to_wav input.opus output.wav"

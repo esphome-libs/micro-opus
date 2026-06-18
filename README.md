@@ -228,6 +228,18 @@ ESP32 (LX6) and ESP32-S3 (LX7) use these DSP instructions for ~17-25% faster dec
 
 Automatically enabled for ESP32 and ESP32-S3 builds.
 
+## Testing
+
+A host-based CTest suite lives in [`tests/`](tests/): unit tests for the wrapper and parser code,
+plus `opus_compare` conformance against the official RFC 8251 vectors. See
+[tests/README.md](tests/README.md) for details.
+
+```bash
+cmake -B tests/build -DENABLE_SANITIZERS=ON tests
+cmake --build tests/build
+ctest --test-dir tests/build --output-on-failure
+```
+
 ## License
 
 This project uses a dual-license structure:

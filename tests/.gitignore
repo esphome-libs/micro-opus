@@ -1,0 +1,14 @@
+# CMake build output
+build/
+
+# Downloaded test vectors (fetch with tests/fetch_vectors.sh)
+vectors/
+
+# Decoded PCM / scratch produced by the conformance tests
+*.sw
+*.dec
+*.bit
+
+# The repo-root .gitignore ignores test_opus_* (upstream build artifacts); keep our test sources
+# tracked. Build directories are already ignored above, so this only affects source files.
+!unit/test_*.cpp
