@@ -239,10 +239,11 @@ endfunction()
 # Non-opus sources (these don't depend on OPUS_DIR)
 # ==============================================================================
 
-# Ogg Opus decoder (C++ wrapper) - in our src/ directory
+# Opus decoder C++ wrappers - in our src/ directory
 set(OGG_OPUS_SOURCES
     src/opus_header.cpp
     src/ogg_opus_decoder.cpp
+    src/opus_packet_decoder.cpp
 )
 
 # Thread-local storage sources (for THREADSAFE_PSEUDOSTACK mode)

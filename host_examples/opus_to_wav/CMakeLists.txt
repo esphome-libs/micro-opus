@@ -46,6 +46,9 @@ target_link_libraries(test_chunked PRIVATE micro_opus)
 add_executable(test_silent_channels test/test_silent_channels.cpp)
 target_link_libraries(test_silent_channels PRIVATE micro_opus)
 
+add_executable(test_raw_packet test/test_raw_packet.cpp)
+target_link_libraries(test_raw_packet PRIVATE micro_opus)
+
 # Benchmark tool (requires debug/stats enabled)
 add_executable(measure_zerocopy test/measure_zerocopy.cpp)
 target_link_libraries(measure_zerocopy PRIVATE micro_opus)
