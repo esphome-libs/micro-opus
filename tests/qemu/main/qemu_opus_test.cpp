@@ -60,14 +60,14 @@
 
 namespace {
 
-constexpr uint32_t kSampleRate = 48000;
+constexpr uint32_t SAMPLE_RATE = 48000;
 // A single Opus packet is at most ~61 KB (code 3, 48 frames of 1275 bytes).
-constexpr uint32_t kMaxPacketBytes = 61440;
+constexpr uint32_t MAX_PACKET_BYTES = 61440;
 
 // Dedicated raw-PCM channel. QEMU wires the UART peripheral straight to its
 // chardev backend, so no GPIO routing is needed under emulation.
-constexpr uart_port_t kPcmUart = UART_NUM_1;
-constexpr int kPcmTxBufBytes = 1 << 14;  // 16 KB driver TX ring; ISR drains to FIFO
+constexpr uart_port_t PCM_UART = UART_NUM_1;
+constexpr int PCM_TX_BUF_BYTES = 1 << 14;  // 16 KB driver TX ring; ISR drains to FIFO
 
 uint32_t read_be32(const uint8_t* p) {
     return (static_cast<uint32_t>(p[0]) << 24) | (static_cast<uint32_t>(p[1]) << 16) |
@@ -81,10 +81,10 @@ uint32_t read_be32(const uint8_t* p) {
 // the decode completed without error.
 bool decode_vector(const qemu_vector_t& vec, int channels, long* out_bytes) {
     std::printf("@@VEC name=%s ch=%d rate=%u\n", vec.name, channels,
-                static_cast<unsigned>(kSampleRate));
+                static_cast<unsigned>(SAMPLE_RATE));
     std::fflush(stdout);
 
-    micro_opus::OpusPacketDecoder decoder(kSampleRate, static_cast<uint8_t>(channels));
+    micro_opus::OpusPacketDecoder decoder(SAMPLE_RATE, static_cast<uint8_t>(channels));
     std::vector<uint8_t> out(decoder.get_pcm_format().max_output_bytes());
 
     long total = 0;
@@ -98,7 +98,7 @@ bool decode_vector(const qemu_vector_t& vec, int channels, long* out_bytes) {
         }
         const uint32_t len = read_be32(vec.data + off);  // [0..3]=len, [4..7]=range (unused)
         off += 8;
-        if (len == 0 || len > kMaxPacketBytes || vec.len - off < len) {
+        if (len == 0 || len > MAX_PACKET_BYTES || vec.len - off < len) {
             std::printf("\n@@FAIL name=%s ch=%d err=bad_packet_len\n", vec.name, channels);
             ok = false;
             break;
@@ -115,7 +115,7 @@ bool decode_vector(const qemu_vector_t& vec, int channels, long* out_bytes) {
             break;
         }
         if (bytes_written > 0) {
-            uart_write_bytes(kPcmUart, out.data(), bytes_written);
+            uart_write_bytes(PCM_UART, out.data(), bytes_written);
             total += static_cast<long>(bytes_written);
         }
     }
@@ -144,16 +144,16 @@ extern "C" void app_main(void) {
     cfg.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
     cfg.source_clk = UART_SCLK_DEFAULT;
     // rx buffer must exceed the 128-byte HW FIFO even though we only transmit.
-    ESP_ERROR_CHECK(uart_driver_install(kPcmUart, 256, kPcmTxBufBytes, 0, nullptr, 0));
-    ESP_ERROR_CHECK(uart_param_config(kPcmUart, &cfg));
+    ESP_ERROR_CHECK(uart_driver_install(PCM_UART, 256, PCM_TX_BUF_BYTES, 0, nullptr, 0));
+    ESP_ERROR_CHECK(uart_param_config(PCM_UART, &cfg));
 
     unsigned int count = 0;
     unsigned int fail = 0;
     // Decode at both channel counts, mirroring the host run_vectors.sh, which
     // accepts a match against either the stereo (.dec) or mono (m.dec) reference.
-    const int kChannels[] = {1, 2};
+    const int channels[] = {1, 2};
     for (unsigned int i = 0; i < QEMU_VECTOR_COUNT; i++) {
-        for (int ch : kChannels) {
+        for (int ch : channels) {
             long bytes = 0;
             if (!decode_vector(QEMU_VECTORS[i], ch, &bytes)) {
                 fail++;
@@ -164,7 +164,7 @@ extern "C" void app_main(void) {
 
     // Drain the raw channel so the host file is complete before the runner sees
     // the sentinel and kills QEMU.
-    uart_wait_tx_done(kPcmUart, portMAX_DELAY);
+    uart_wait_tx_done(PCM_UART, portMAX_DELAY);
     std::printf("===OPUS_QEMU_DONE=== count=%u fail=%u\n", count, fail);
     std::fflush(stdout);
 
