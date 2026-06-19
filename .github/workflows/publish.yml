@@ -28,9 +28,50 @@ jobs:
           [ "$idf" = "$expected" ] || { echo "::error::idf_component.yml version ($idf) != release tag ($expected)"; fail=1; }
           exit $fail
 
+  ci-gate:
+    name: CI gate
+    runs-on: ubuntu-latest
+    permissions:
+      checks: read
+    steps:
+      - name: Verify CI passed on the release commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Block the release unless every required CI check succeeded on this commit. The release
+          # tag name is the check-runs ref so the API resolves it to the underlying commit
+          # (github.sha can be the tag object SHA for an annotated tag, which carries no check runs).
+          # Matrix jobs append parameters to the name (e.g. "Unit tests (USE_ALLOCA)"), so match by
+          # prefix. "Cross (Xtensa QEMU ...)" is skipped on wrapper-only commits, so "skipped" is
+          # accepted alongside "success" (a QEMU run that actually failed still blocks).
+          EXPECTED_CHECKS=("Pre-commit checks" "Static analysis" "Build" "Unit tests" "opus_compare conformance" "Cross" "PlatformIO Build")
+          CONCLUSIONS=$(gh api "repos/${{ github.repository }}/commits/${{ github.event.release.tag_name }}/check-runs" \
+            --paginate --jq '.check_runs[] | .name + "=" + .conclusion')
+
+          for check in "${EXPECTED_CHECKS[@]}"; do
+            matches=$(echo "$CONCLUSIONS" | grep "^${check}" || true)
+            if [ -z "$matches" ]; then
+              echo "Required CI check not found: $check"
+              exit 1
+            fi
+            all_passed=true
+            while IFS= read -r match; do
+              name="${match%=*}"
+              conclusion="${match##*=}"
+              case "$conclusion" in
+                success|skipped) echo "CI check '$name': $conclusion" ;;
+                *) echo "CI check '$name' did not pass: $conclusion"; all_passed=false ;;
+              esac
+            done <<< "$matches"
+            if [ "$all_passed" != "true" ]; then
+              exit 1
+            fi
+          done
+          echo "All required CI checks passed."
+
   publish-platformio:
     name: Publish to PlatformIO
-    needs: verify-version
+    needs: [verify-version, ci-gate]
     runs-on: ubuntu-latest
     environment: platformio
     steps:
@@ -50,7 +91,7 @@ jobs:
 
   publish-espressif:
     name: Publish to Espressif
-    needs: verify-version
+    needs: [verify-version, ci-gate]
     runs-on: ubuntu-latest
     environment: espressif
     permissions:
