@@ -28,6 +28,7 @@ jobs:
         run: |
           sed -i "s/\"version\": .*/\"version\": \"${{ steps.drafter.outputs.resolved_version }}\",/g" library.json
           sed -i "s/version: .*/version: \"${{ steps.drafter.outputs.resolved_version }}\"/g" idf_component.yml
+          sed -i "s/project(micro_opus VERSION .* LANGUAGES/project(micro_opus VERSION ${{ steps.drafter.outputs.resolved_version }} LANGUAGES/g" CMakeLists.txt
 
       - name: Commit changes
         run: |
