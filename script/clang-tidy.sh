@@ -58,8 +58,14 @@ if [ -z "$SOURCES" ]; then
 fi
 
 # Host test sources use their own compile database (tests/build). They inherit every rule from the
-# root .clang-tidy except readability-magic-numbers, which tests/.clang-tidy disables. qemu/ is an
-# ESP-IDF app and can't be checked on the host, so it is left out.
+# root .clang-tidy except two that tests/.clang-tidy disables: readability-magic-numbers (tests
+# craft raw byte literals where naming each value would hurt readability) and bugprone-exception-
+# escape (each test's main() intentionally lets exceptions propagate to fail the run). The find
+# targets unit/ and conformance/ specifically; two other tests/ subdirs are left out on purpose:
+#   - qemu/ is an ESP-IDF app and can't be checked on the host.
+#   - tools/ (measure_zerocopy) only compiles under -DBUILD_MEASURE_TOOLS=ON, which instruments the
+#     library with MICRO_OGG_DEMUXER_DEBUG and so is absent from the default tests compile DB; it
+#     would need a dedicated debug build dir to lint. (support/ is headers-only, covered by the filter.)
 TEST_BUILD_DIR="${ROOT_DIR}/tests/build"
 TEST_SOURCES=$(find "$ROOT_DIR/tests/unit" "$ROOT_DIR/tests/conformance" \
     -name '*.cpp' -print 2>/dev/null || true)

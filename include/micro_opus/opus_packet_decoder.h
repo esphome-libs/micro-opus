@@ -92,7 +92,10 @@ public:
     /// output_size_bytes.
     /// @return Output buffer size in bytes (all channels)
     uint32_t max_output_bytes() const {
-        return (this->sample_rate_ / 1000U * 120U) * this->num_channels_ * this->bytes_per_sample();
+        constexpr uint32_t MS_PER_SECOND = 1000U;
+        constexpr uint32_t MAX_PACKET_DURATION_MS = 120U;  // Opus' largest frame duration
+        return (this->sample_rate_ / MS_PER_SECOND * MAX_PACKET_DURATION_MS) * this->num_channels_ *
+               this->bytes_per_sample();
     }
     /// @brief Number of output channels (1 = mono, 2 = stereo)
     /// @return Output channel count
@@ -173,6 +176,9 @@ public:
  */
 class OpusPacketDecoder {
 public:
+    /// @brief Default output sample rate in Hz (the native Opus rate)
+    static constexpr uint32_t DEFAULT_SAMPLE_RATE = 48000;
+
     // ========================================
     // Lifecycle
     // ========================================
@@ -187,7 +193,7 @@ public:
     ///                    48000 (the rates Opus can decode to); other values are rejected on the
     ///                    first decode() call. Default 48000 (native Opus rate).
     /// @param channels Output channel count: 1 (mono) or 2 (stereo). Default 2.
-    explicit OpusPacketDecoder(uint32_t sample_rate = 48000, uint8_t channels = 2);
+    explicit OpusPacketDecoder(uint32_t sample_rate = DEFAULT_SAMPLE_RATE, uint8_t channels = 2);
 
     /// @brief Destroy the decoder and free the libopus decoder state
     ~OpusPacketDecoder();

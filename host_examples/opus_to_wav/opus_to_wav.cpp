@@ -127,7 +127,7 @@ int main(int argc, char* argv[]) {
                     // Create WAV writer with decoder's format
                     wav_writer = new WavWriter(output_file, sample_rate, channels, 16);
 
-                    if (!wav_writer->isOpen()) {
+                    if (!wav_writer->is_open()) {
                         std::cerr << "Error: Could not create output file: " << output_file << "\n";
                         delete wav_writer;
                         return 1;
@@ -165,7 +165,7 @@ int main(int argc, char* argv[]) {
 
                     // Write decoded samples to WAV file
                     if (wav_writer) {
-                        if (!wav_writer->writeSamples(pcm_buffer.data(), samples)) {
+                        if (!wav_writer->write_samples(pcm_buffer.data(), samples)) {
                             std::cerr << "Error: Failed to write samples to WAV file\n";
                             delete wav_writer;
                             return 1;
@@ -190,9 +190,9 @@ int main(int argc, char* argv[]) {
                       << (total_bytes_consumed / (total_packets > 0 ? total_packets : 1)) << "\n";
             std::cout << "Total packets decoded: " << total_packets << " (" << audio_packets
                       << " audio packets)\n";
-            std::cout << "Total samples written: " << wav_writer->getSamplesWritten() << "\n";
+            std::cout << "Total samples written: " << wav_writer->get_samples_written() << "\n";
             std::cout << "Duration: "
-                      << (wav_writer->getSamplesWritten() /
+                      << (wav_writer->get_samples_written() /
                           static_cast<double>(decoder.get_sample_rate()))
                       << " seconds\n";
             std::cout << "Output file: " << output_file << "\n";

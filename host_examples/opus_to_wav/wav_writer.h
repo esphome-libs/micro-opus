@@ -48,14 +48,14 @@ public:
      * @param num_samples Number of samples (per channel)
      * @return true if successful, false on error
      */
-    bool writeSamples(const int16_t* samples, size_t num_samples);
+    bool write_samples(const int16_t* samples, size_t num_samples);
 
     /**
      * @brief Check if the WAV file is open and ready
      *
      * @return true if file is open
      */
-    bool isOpen() const {
+    bool is_open() const {
         return file_ != nullptr;
     }
 
@@ -64,7 +64,7 @@ public:
      *
      * @return Total samples written (per channel)
      */
-    uint64_t getSamplesWritten() const {
+    uint64_t get_samples_written() const {
         return samples_written_;
     }
 
@@ -73,14 +73,14 @@ private:
     WavWriter(const WavWriter&) = delete;
     WavWriter& operator=(const WavWriter&) = delete;
 
-    void writeHeader();
-    void updateHeader();
+    void write_header();
+    void update_header();
 
     FILE* file_;
     uint32_t sample_rate_;
     uint16_t num_channels_;
     uint16_t bits_per_sample_;
-    uint64_t samples_written_;
+    uint64_t samples_written_{0};
 };
 
 #endif  // WAV_WRITER_HPP
