@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# Run clang-tidy on source files
-# Requires a compile_commands.json in the build directory
+# Run clang-tidy on production sources (src/, host_examples/) and host test sources
+# (tests/unit/, tests/conformance/).
+# Requires a compile_commands.json in each build directory (host_examples/opus_to_wav/build
+# and tests/build); the tests one is auto-generated via cmake if absent.
 
 set -e
 
@@ -40,10 +42,7 @@ if [ ! -f "${BUILD_DIR}/compile_commands.json" ]; then
 fi
 
 # Find all source files, excluding lib/ and build/ directories
-# Note: examples/ excluded as ESP-IDF code can't be checked without ESP-IDF headers.
-# Note: tests/ is intentionally excluded. Test code uses looser idioms (magic numbers in crafted
-# byte streams, etc.) and builds from a different compile database; it is covered by clang-format
-# (see .pre-commit-config.yaml) but not clang-tidy.
+# Note: examples/ and tests/qemu/ excluded as ESP-IDF code can't be checked without ESP-IDF headers.
 SOURCES=$(find "$ROOT_DIR/src" "$ROOT_DIR/host_examples" \
     -path '*/build' -prune -o \
     -path '*/lib' -prune -o \
@@ -54,11 +53,28 @@ if [ -z "$SOURCES" ]; then
     exit 0
 fi
 
+# Host test sources use their own compile database (tests/build). They inherit every rule from the
+# root .clang-tidy except readability-magic-numbers, which tests/.clang-tidy disables. qemu/ is an
+# ESP-IDF app and can't be checked on the host, so it is left out.
+TEST_BUILD_DIR="${ROOT_DIR}/tests/build"
+TEST_SOURCES=$(find "$ROOT_DIR/tests/unit" "$ROOT_DIR/tests/conformance" \
+    -name '*.cpp' -print 2>/dev/null || true)
+
+if [ -n "$TEST_SOURCES" ] && [ ! -f "${TEST_BUILD_DIR}/compile_commands.json" ]; then
+    echo "Generating tests/build/compile_commands.json..."
+    cmake -B "$TEST_BUILD_DIR" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON "${ROOT_DIR}/tests"
+fi
+
 # Parse arguments
 FIX_FLAG=""
 if [ "$1" = "--fix" ]; then
     FIX_FLAG="--fix"
 fi
 
-echo "Running clang-tidy..."
+echo "Running clang-tidy on src/ and host_examples/..."
 $CLANG_TIDY -p "$BUILD_DIR" $FIX_FLAG $SOURCES
+
+if [ -n "$TEST_SOURCES" ]; then
+    echo "Running clang-tidy on tests/..."
+    $CLANG_TIDY -p "$TEST_BUILD_DIR" $FIX_FLAG $TEST_SOURCES
+fi

@@ -32,7 +32,7 @@
 
 namespace {
 
-constexpr uint32_t kSampleRate = 48000;
+constexpr uint32_t SAMPLE_RATE = 48000;
 
 uint32_t read_be32(const uint8_t* p) {
     return (static_cast<uint32_t>(p[0]) << 24) | (static_cast<uint32_t>(p[1]) << 16) |
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    const int channels = std::atoi(argv[1]);
+    const int channels = static_cast<int>(std::strtol(argv[1], nullptr, 10));
     if (channels != 1 && channels != 2) {
         std::fprintf(stderr, "channels must be 1 or 2\n");
         return 2;
@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    micro_opus::OpusPacketDecoder decoder(kSampleRate, static_cast<uint8_t>(channels));
+    micro_opus::OpusPacketDecoder decoder(SAMPLE_RATE, static_cast<uint8_t>(channels));
     std::vector<uint8_t> out(decoder.get_pcm_format().max_output_bytes());
     std::vector<uint8_t> packet;
 
@@ -88,14 +88,14 @@ int main(int argc, char** argv) {
         // outside that range means a corrupt or unsupported bitstream. The RFC vectors contain
         // neither a zero-length (DTX/PLC) packet nor an oversized one, so treat both as hard errors
         // rather than concealing or allocating a huge buffer.
-        constexpr uint32_t kMaxPacketBytes = 61440;
+        constexpr uint32_t MAX_PACKET_BYTES = 61440;
         if (len == 0) {
             std::fprintf(stderr, "Zero-length (DTX) packets are not supported by this harness\n");
             rc = 1;
             break;
         }
-        if (len > kMaxPacketBytes) {
-            std::fprintf(stderr, "Implausible payload length %u (> %u)\n", len, kMaxPacketBytes);
+        if (len > MAX_PACKET_BYTES) {
+            std::fprintf(stderr, "Implausible payload length %u (> %u)\n", len, MAX_PACKET_BYTES);
             rc = 1;
             break;
         }

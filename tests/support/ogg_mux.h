@@ -27,20 +27,20 @@
 namespace micro_opus_test {
 
 // Ogg page header flags (RFC 3533 Section 6).
-constexpr uint8_t kOggFlagContinued = 0x01;  // Page continues a packet from the previous page
-constexpr uint8_t kOggFlagBos = 0x02;        // Beginning of stream
-constexpr uint8_t kOggFlagEos = 0x04;        // End of stream
+constexpr uint8_t OGG_FLAG_CONTINUED = 0x01;  // Page continues a packet from the previous page
+constexpr uint8_t OGG_FLAG_BOS = 0x02;        // Beginning of stream
+constexpr uint8_t OGG_FLAG_EOS = 0x04;        // End of stream
 
 namespace detail {
 
 // Ogg segment-table constants.
-constexpr size_t kOggMaxSegmentSize = 255;
-constexpr size_t kOggSegmentDivisor = 254;
-constexpr size_t kOggMaxSegmentsPerPage = 255;  // Segment count is a single byte (RFC 3533 6.2)
+constexpr size_t OGG_MAX_SEGMENT_SIZE = 255;
+constexpr size_t OGG_SEGMENT_DIVISOR = 254;
+constexpr size_t OGG_MAX_SEGMENTS_PER_PAGE = 255;  // Segment count is a single byte (RFC 3533 6.2)
 
 // CRC-32 lookup table (Ogg/Ethernet polynomial 0x04C11DB7, no reflection).
 inline const uint32_t* crc_table() {
-    static const uint32_t kTable[256] = {
+    static const uint32_t TABLE[256] = {
         0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b, 0x1a864db2,
         0x1e475005, 0x2608edb8, 0x22c9f00f, 0x2f8ad6d6, 0x2b4bcb61, 0x350c9b64, 0x31cd86d3,
         0x3c8ea00a, 0x384fbdbd, 0x4c11db70, 0x48d0c6c7, 0x4593e01e, 0x4152fda9, 0x5f15adac,
@@ -78,7 +78,7 @@ inline const uint32_t* crc_table() {
         0xf9278673, 0xfde69bc4, 0x89b8fd09, 0x8d79e0be, 0x803ac667, 0x84fbdbd0, 0x9abc8bd5,
         0x9e7d9662, 0x933eb0bb, 0x97ffad0c, 0xafb010b1, 0xab710d06, 0xa6322bdf, 0xa2f33668,
         0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4};
-    return kTable;
+    return TABLE;
 }
 
 inline uint32_t crc32(const uint8_t* buffer, size_t size) {
@@ -125,22 +125,22 @@ inline std::vector<uint8_t> make_ogg_page(uint8_t header_type, uint64_t granule_
     put_le32(page, 0);
 
     size_t num_segments =
-        (packet_data.size() + detail::kOggSegmentDivisor) / detail::kOggMaxSegmentSize;
-    if (complete_packet && (packet_data.size() % detail::kOggMaxSegmentSize == 0)) {
+        (packet_data.size() + detail::OGG_SEGMENT_DIVISOR) / detail::OGG_MAX_SEGMENT_SIZE;
+    if (complete_packet && (packet_data.size() % detail::OGG_MAX_SEGMENT_SIZE == 0)) {
         ++num_segments;  // Exact multiple of 255 needs an explicit terminating segment
     }
     // One page holds at most 255 segments (~64 KB), well above any real Opus packet. This enforces
     // the helper's single-page contract: an oversized packet fails loudly instead of truncating
     // num_segments to a uint8_t and emitting a malformed page.
-    assert(num_segments <= detail::kOggMaxSegmentsPerPage &&
+    assert(num_segments <= detail::OGG_MAX_SEGMENTS_PER_PAGE &&
            "packet too large for a single Ogg page");
     page.push_back(static_cast<uint8_t>(num_segments));
 
     size_t remaining = packet_data.size();
     for (size_t i = 0; i < num_segments; ++i) {
-        if (remaining > detail::kOggMaxSegmentSize) {
-            page.push_back(detail::kOggMaxSegmentSize);
-            remaining -= detail::kOggMaxSegmentSize;
+        if (remaining > detail::OGG_MAX_SEGMENT_SIZE) {
+            page.push_back(detail::OGG_MAX_SEGMENT_SIZE);
+            remaining -= detail::OGG_MAX_SEGMENT_SIZE;
         } else {
             page.push_back(static_cast<uint8_t>(remaining));
             remaining = 0;
