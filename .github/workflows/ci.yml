@@ -325,3 +325,31 @@ jobs:
 
       - name: Build ${{ matrix.example }}
         run: pio run -d examples/${{ matrix.example }}
+
+  # Single aggregating status for branch protection: require only "CI success" instead of every job.
+  # always() so it reports even when a job fails or the conditional cross-qemu job is skipped; skipped
+  # dependencies are treated as passing (only failure/cancelled blocks).
+  ci-success:
+    name: CI success
+    if: always()
+    needs:
+      - pre-commit
+      - lint
+      - build
+      - test
+      - conformance
+      - changes
+      - cross-qemu
+      - platformio
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail if any required job failed or was cancelled
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "One or more CI jobs failed or were cancelled:"
+          echo '${{ toJSON(needs) }}'
+          exit 1
+
+      - name: Report success
+        run: echo "All required CI jobs passed (skipped jobs are allowed)."
