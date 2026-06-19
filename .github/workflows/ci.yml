@@ -9,11 +9,22 @@ on:
     # `labeled` lets the `ci-run-qemu` label start a run. Every job except changes/cross-qemu is
     # gated on `github.event.action != 'labeled'`, so labeling re-runs only QEMU, not the whole suite.
     types: [opened, synchronize, reopened, labeled]
+  # Manual "Run workflow" from the Actions tab. The changes job's fail-safe (unreachable base) runs
+  # the full suite including QEMU on a dispatch, which is what you want from a manual trigger.
+  workflow_dispatch:
 
 # Least privilege: every job here only reads the repo (checkout, build, test, cache). Jobs that
 # need more should add a narrower job-level permissions block rather than widening this default.
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Don't cancel an in-progress run when a label is added. The `labeled` trigger fires for every
+  # label (it exists so `ci-run-qemu` can force a QEMU run), and a labeled event shares this group,
+  # so cancelling here would kill a running suite just because the PR was labeled. New commits
+  # (push/synchronize) still supersede a run.
+  cancel-in-progress: ${{ github.event.action != 'labeled' }}
 
 jobs:
   pre-commit:
@@ -21,6 +32,7 @@ jobs:
     # Skip on label-only events so labeling runs only the QEMU job (see pull_request types).
     if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
@@ -34,6 +46,7 @@ jobs:
     name: Static analysis
     if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -42,22 +55,41 @@ jobs:
       - name: Install clang-tidy
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-tidy
+          sudo apt-get install -y clang-tidy-18
 
       - name: Run clang-tidy
+        env:
+          CLANG_TIDY: clang-tidy-18
         run: ./script/clang-tidy.sh
 
   build:
     name: Build
     if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # libopus is ~260 .c files rebuilt from scratch in every host job; ccache reuses objects across runs.
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           submodules: recursive
 
+      - name: Install ccache
+        run: sudo apt-get update && sudo apt-get install -y ccache
+
+      - name: Cache ccache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-build-${{ github.sha }}
+          restore-keys: ccache-build-
+
       - name: Configure CMake
-        run: cmake -B build host_examples/opus_to_wav
+        run: >
+          cmake -B build
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          host_examples/opus_to_wav
 
       - name: Build
         run: cmake --build build
@@ -66,6 +98,9 @@ jobs:
     name: Unit tests (${{ matrix.alloc_mode }})
     if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
     strategy:
       fail-fast: false
       matrix:
@@ -77,9 +112,20 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install ccache
+        run: sudo apt-get update && sudo apt-get install -y ccache
+
+      - name: Cache ccache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-test-${{ matrix.alloc_mode }}-${{ github.sha }}
+          restore-keys: ccache-test-${{ matrix.alloc_mode }}-
+
       - name: Configure CMake with sanitizers
         run: >
           cmake -B build -DENABLE_SANITIZERS=ON
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           -DOPUS_ALLOCATION_MODE=${{ matrix.alloc_mode }} tests
 
       - name: Build
@@ -92,10 +138,23 @@ jobs:
     name: opus_compare conformance
     if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           submodules: recursive
+
+      - name: Install ccache
+        run: sudo apt-get update && sudo apt-get install -y ccache
+
+      - name: Cache ccache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-conformance-${{ github.sha }}
+          restore-keys: ccache-conformance-
 
       # The RFC 8251 test vectors are static; cache them so we don't re-download every run. Keying on
       # the fetch script means the cache auto-invalidates if the vector URL ever changes.
@@ -111,7 +170,10 @@ jobs:
         run: tests/fetch_vectors.sh
 
       - name: Configure CMake
-        run: cmake -B build tests
+        run: >
+          cmake -B build
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          tests
 
       - name: Build
         run: cmake --build build
@@ -128,6 +190,7 @@ jobs:
   changes:
     name: Detect on-target changes
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       target: ${{ steps.filter.outputs.target }}
     steps:
@@ -162,11 +225,13 @@ jobs:
   cross-qemu:
     name: Cross (Xtensa QEMU conformance, ${{ matrix.variant }})
     needs: changes
-    # Skip on wrapper-only changes. Add the `ci-run-qemu` label to force a run.
+    # Skip on wrapper-only changes. Add the `ci-run-qemu` label to force a run. On a `labeled` event
+    # only that label triggers QEMU, so adding an unrelated label doesn't kick off a redundant run.
     if: >
-      needs.changes.outputs.target == 'true' ||
+      (github.event.action != 'labeled' && needs.changes.outputs.target == 'true') ||
       contains(github.event.pull_request.labels.*.name, 'ci-run-qemu')
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     # esp-idf version matches the PlatformIO framework (esp-idf v5.4.x) so the
     # xtensa-gcc codegen is the same as the local run. Xtensa emulation is
     # native-speed on the amd64 runner.
@@ -240,6 +305,7 @@ jobs:
     name: PlatformIO Build
     if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         example: [decode_benchmark, encode_benchmark]
@@ -267,3 +333,31 @@ jobs:
 
       - name: Build ${{ matrix.example }}
         run: pio run -d examples/${{ matrix.example }}
+
+  # Single aggregating status for branch protection: require only "CI success" instead of every job.
+  # always() so it reports even when a job fails or the conditional cross-qemu job is skipped; skipped
+  # dependencies are treated as passing (only failure/cancelled blocks).
+  ci-success:
+    name: CI success
+    if: always()
+    needs:
+      - pre-commit
+      - lint
+      - build
+      - test
+      - conformance
+      - changes
+      - cross-qemu
+      - platformio
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail if any required job failed or was cancelled
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "One or more CI jobs failed or were cancelled:"
+          echo '${{ toJSON(needs) }}'
+          exit 1
+
+      - name: Report success
+        run: echo "All required CI jobs passed (skipped jobs are allowed)."
