@@ -95,7 +95,8 @@ void WavWriter::update_header() {
         return;
     }
 
-    uint32_t data_size = samples_written_ * num_channels_ * (bits_per_sample_ / 8);
+    uint32_t data_size =
+        static_cast<uint32_t>(samples_written_ * num_channels_ * (bits_per_sample_ / 8));
     uint32_t file_size = data_size + WAV_HEADER_SIZE;
 
     // Update RIFF chunk size

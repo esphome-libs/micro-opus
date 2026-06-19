@@ -93,7 +93,7 @@ int main(int argc, char* argv[]) {
                 break;  // EOF reached
             }
 
-            total_bytes_read += bytes_read;
+            total_bytes_read += static_cast<size_t>(bytes_read);
 
             // Decode from this chunk - decoder may need multiple calls per chunk
             size_t chunk_offset = 0;
@@ -104,7 +104,8 @@ int main(int argc, char* argv[]) {
                 decode_calls++;
 
                 micro_opus::OggOpusResult result =
-                    decoder.decode(input_buffer.data() + chunk_offset, bytes_read - chunk_offset,
+                    decoder.decode(input_buffer.data() + chunk_offset,
+                                   static_cast<size_t>(bytes_read) - chunk_offset,
                                    reinterpret_cast<uint8_t*>(pcm_buffer.data()),
                                    pcm_buffer.size() * sizeof(int16_t), consumed, samples);
 
@@ -192,7 +193,7 @@ int main(int argc, char* argv[]) {
                       << " audio packets)\n";
             std::cout << "Total samples written: " << wav_writer->get_samples_written() << "\n";
             std::cout << "Duration: "
-                      << (wav_writer->get_samples_written() /
+                      << (static_cast<double>(wav_writer->get_samples_written()) /
                           static_cast<double>(decoder.get_sample_rate()))
                       << " seconds\n";
             std::cout << "Output file: " << output_file << "\n";

@@ -87,7 +87,7 @@ jobs:
 
       - name: Configure CMake
         run: >
-          cmake -B build
+          cmake -B build -DENABLE_WERROR=ON
           -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           host_examples/opus_to_wav
 

@@ -25,11 +25,12 @@ namespace micro_opus {
 namespace {
 // Little-endian helpers for Opus header parsing
 inline uint16_t read_le16(const uint8_t* p) {
-    return p[0] | (p[1] << 8);
+    return static_cast<uint16_t>(p[0] | (p[1] << 8));
 }
 
 inline uint32_t read_le32(const uint8_t* p) {
-    return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+    return static_cast<uint32_t>(p[0]) | (static_cast<uint32_t>(p[1]) << 8) |
+           (static_cast<uint32_t>(p[2]) << 16) | (static_cast<uint32_t>(p[3]) << 24);
 }
 
 // RFC 7845: Opus magic signature lengths
@@ -83,7 +84,7 @@ OpusHeaderResult parse_opus_head(const uint8_t* packet, size_t packet_len, OpusH
     head.channel_count = packet[OPUS_MAGIC_SIGNATURE_SIZE + 1];
     head.pre_skip = read_le16(packet + OPUS_MAGIC_SIGNATURE_SIZE + 2);
     head.input_sample_rate = read_le32(packet + OPUS_MAGIC_SIGNATURE_SIZE + 4);
-    head.output_gain = (int16_t)read_le16(packet + OPUS_MAGIC_SIGNATURE_SIZE + 8);
+    head.output_gain = static_cast<int16_t>(read_le16(packet + OPUS_MAGIC_SIGNATURE_SIZE + 8));
     head.channel_mapping = packet[OPUS_MAGIC_SIGNATURE_SIZE + OPUS_HEAD_CHANNEL_MAPPING_OFFSET];
 
     // Validate version
