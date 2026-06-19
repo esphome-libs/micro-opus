@@ -20,7 +20,11 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Don't cancel an in-progress run when a label is added. The `labeled` trigger fires for every
+  # label (it exists so `ci-run-qemu` can force a QEMU run), and a labeled event shares this group,
+  # so cancelling here would kill a running suite just because the PR was labeled. New commits
+  # (push/synchronize) still supersede a run.
+  cancel-in-progress: ${{ github.event.action != 'labeled' }}
 
 jobs:
   pre-commit:
@@ -221,9 +225,10 @@ jobs:
   cross-qemu:
     name: Cross (Xtensa QEMU conformance, ${{ matrix.variant }})
     needs: changes
-    # Skip on wrapper-only changes. Add the `ci-run-qemu` label to force a run.
+    # Skip on wrapper-only changes. Add the `ci-run-qemu` label to force a run. On a `labeled` event
+    # only that label triggers QEMU, so adding an unrelated label doesn't kick off a redundant run.
     if: >
-      needs.changes.outputs.target == 'true' ||
+      (github.event.action != 'labeled' && needs.changes.outputs.target == 'true') ||
       contains(github.event.pull_request.labels.*.name, 'ci-run-qemu')
     runs-on: ubuntu-latest
     timeout-minutes: 40
