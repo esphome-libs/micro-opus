@@ -39,23 +39,6 @@ target_link_libraries(opus_to_wav PRIVATE
     micro_opus
 )
 
-# Tests
-add_executable(test_chunked test/test_chunked.cpp)
-target_link_libraries(test_chunked PRIVATE micro_opus)
-
-add_executable(test_silent_channels test/test_silent_channels.cpp)
-target_link_libraries(test_silent_channels PRIVATE micro_opus)
-
-add_executable(test_raw_packet test/test_raw_packet.cpp)
-target_link_libraries(test_raw_packet PRIVATE micro_opus)
-
-# Benchmark tool (requires debug/stats enabled)
-add_executable(measure_zerocopy test/measure_zerocopy.cpp)
-target_link_libraries(measure_zerocopy PRIVATE micro_opus)
-target_compile_definitions(measure_zerocopy PRIVATE MICRO_OGG_DEMUXER_DEBUG)
-target_compile_definitions(micro_opus PUBLIC MICRO_OGG_DEMUXER_DEBUG)
-target_compile_definitions(micro_ogg_demuxer PUBLIC MICRO_OGG_DEMUXER_DEBUG)
-
 # Install target
 install(TARGETS opus_to_wav
     RUNTIME DESTINATION bin

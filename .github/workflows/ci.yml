@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: every job here only reads the repo (checkout, build, test, cache). Jobs that
+# need more should add a narrower job-level permissions block rather than widening this default.
+permissions:
+  contents: read
+
 jobs:
   pre-commit:
     name: Pre-commit checks
@@ -51,21 +56,62 @@ jobs:
         run: cmake --build build
 
   test:
-    name: Test
+    name: Unit tests (${{ matrix.alloc_mode }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Run the suite under each memory-allocation mode so the always-on stack_alloc patch and the
+        # thread-local pseudostack are exercised in every configuration, all under ASan/UBSan.
+        alloc_mode: [THREADSAFE_PSEUDOSTACK, NONTHREADSAFE_PSEUDOSTACK, USE_ALLOCA]
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           submodules: recursive
 
       - name: Configure CMake with sanitizers
-        run: cmake -B build -DENABLE_SANITIZERS=ON host_examples/opus_to_wav
+        run: >
+          cmake -B build -DENABLE_SANITIZERS=ON
+          -DOPUS_ALLOCATION_MODE=${{ matrix.alloc_mode }} tests
 
       - name: Build
         run: cmake --build build
 
-      - name: Run tests
-        run: ./build/test_silent_channels
+      - name: Run unit tests
+        run: ctest --test-dir build -L unit --output-on-failure
+
+  conformance:
+    name: opus_compare conformance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: recursive
+
+      # The RFC 8251 test vectors are static; cache them so we don't re-download every run. Keying on
+      # the fetch script means the cache auto-invalidates if the vector URL ever changes.
+      - name: Cache test vectors
+        id: cache-vectors
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: tests/vectors
+          key: opus-testvectors-${{ hashFiles('tests/fetch_vectors.sh') }}
+
+      - name: Download test vectors
+        if: steps.cache-vectors.outputs.cache-hit != 'true'
+        run: tests/fetch_vectors.sh
+
+      - name: Configure CMake
+        run: cmake -B build tests
+
+      - name: Build
+        run: cmake --build build
+
+      # Decode the official vectors with our decoder and validate each against its reference
+      # decode with opus_compare. Run without sanitizers: opus_compare's FFT analysis over the long
+      # vectors is slow, and our decoder is already exercised under ASan in the unit-test job.
+      - name: Run conformance tests
+        run: ctest --test-dir build -L conformance --output-on-failure
 
   platformio:
     name: PlatformIO Build

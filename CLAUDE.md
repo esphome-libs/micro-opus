@@ -19,6 +19,12 @@ include/micro_opus/      # Public API headers
 src/                     # OggOpusDecoder implementation
 examples/                # ESP-IDF examples
 host_examples/           # Host platform tools (opus_to_wav)
+tests/                   # Host CTest suite (unit + opus_compare conformance)
+  unit/                  # Wrapper/parser tests
+  conformance/           # opus_compare validation against RFC test vectors
+  support/               # Shared test helpers (in-memory Ogg muxing)
+  tools/                 # Measurement tools (opt-in)
+  fetch_vectors.sh       # Downloads the RFC 8251 test vectors
 ```
 
 ## Build Commands
@@ -68,11 +74,17 @@ cmake -DENABLE_SANITIZERS=ON .. && make
 
 ### Testing changes
 
+Tests live in the repo-root `tests/` directory (CTest). See `tests/README.md` for details.
+
 ```bash
-# Run host tests with sanitizers to catch memory issues
-cd host_examples/opus_to_wav
-cmake -DENABLE_SANITIZERS=ON -B build && cmake --build build
-./build/opus_to_wav test.opus /tmp/out.wav
+# Run the host test suite with sanitizers to catch memory issues
+cmake -B tests/build -DENABLE_SANITIZERS=ON tests
+cmake --build tests/build
+ctest --test-dir tests/build --output-on-failure
+
+# opus_compare conformance against the official RFC vectors (download once, then it runs)
+tests/fetch_vectors.sh
+ctest --test-dir tests/build -L conformance --output-on-failure
 
 # ESP32 benchmark
 cd examples/decode_benchmark

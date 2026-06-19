@@ -16,7 +16,7 @@ repos:
       - id: clang-format
         types_or: [c, c++]
         # Only format our own code, not submodules or staged/build directories
-        files: ^(src/|include/|examples/.*/src/|host_examples/opus_to_wav/|patches/)
+        files: ^(src/|include/|examples/.*/src/|host_examples/opus_to_wav/|patches/|tests/)
         exclude: (build/|\.pio/|opus-staged/)
 
   - repo: https://github.com/igorshubovych/markdownlint-cli

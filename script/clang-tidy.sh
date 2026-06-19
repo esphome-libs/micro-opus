@@ -40,7 +40,10 @@ if [ ! -f "${BUILD_DIR}/compile_commands.json" ]; then
 fi
 
 # Find all source files, excluding lib/ and build/ directories
-# Note: examples/ excluded as ESP-IDF code can't be checked without ESP-IDF headers
+# Note: examples/ excluded as ESP-IDF code can't be checked without ESP-IDF headers.
+# Note: tests/ is intentionally excluded. Test code uses looser idioms (magic numbers in crafted
+# byte streams, etc.) and builds from a different compile database; it is covered by clang-format
+# (see .pre-commit-config.yaml) but not clang-tidy.
 SOURCES=$(find "$ROOT_DIR/src" "$ROOT_DIR/host_examples" \
     -path '*/build' -prune -o \
     -path '*/lib' -prune -o \
