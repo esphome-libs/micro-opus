@@ -9,6 +9,9 @@ on:
     # `labeled` lets the `ci-run-qemu` label start a run. Every job except changes/cross-qemu is
     # gated on `github.event.action != 'labeled'`, so labeling re-runs only QEMU, not the whole suite.
     types: [opened, synchronize, reopened, labeled]
+  # Manual "Run workflow" from the Actions tab. The changes job's fail-safe (unreachable base) runs
+  # the full suite including QEMU on a dispatch, which is what you want from a manual trigger.
+  workflow_dispatch:
 
 # Least privilege: every job here only reads the repo (checkout, build, test, cache). Jobs that
 # need more should add a narrower job-level permissions block rather than widening this default.
