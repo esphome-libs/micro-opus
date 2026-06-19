@@ -10,8 +10,27 @@ permissions:
   contents: read
 
 jobs:
+  verify-version:
+    name: Verify version matches tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Check library.json and idf_component.yml against the release tag
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          expected="${TAG#v}"
+          lib="$(jq -r '.version' library.json)"
+          idf="$(grep -m1 '^version:' idf_component.yml | sed -e 's/^version:[[:space:]]*//' -e 's/"//g' -e 's/[[:space:]]*$//')"
+          echo "tag=$TAG expected=$expected library.json=$lib idf_component.yml=$idf"
+          fail=0
+          [ "$lib" = "$expected" ] || { echo "::error::library.json version ($lib) != release tag ($expected)"; fail=1; }
+          [ "$idf" = "$expected" ] || { echo "::error::idf_component.yml version ($idf) != release tag ($expected)"; fail=1; }
+          exit $fail
+
   publish-platformio:
     name: Publish to PlatformIO
+    needs: verify-version
     runs-on: ubuntu-latest
     environment: platformio
     steps:
@@ -31,6 +50,7 @@ jobs:
 
   publish-espressif:
     name: Publish to Espressif
+    needs: verify-version
     runs-on: ubuntu-latest
     environment: espressif
     permissions:

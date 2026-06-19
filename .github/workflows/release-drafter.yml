@@ -34,6 +34,6 @@ jobs:
           if ! git diff --quiet; then
             git config --global user.name "esphomebot"
             git config --global user.email "68923041+esphomebot@users.noreply.github.com"
-            git commit -am "Bump version to ${{ steps.drafter.outputs.resolved_version }}"
+            git commit -am "Bump version to ${{ steps.drafter.outputs.resolved_version }} [skip ci]"
             git push
           fi
