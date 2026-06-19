@@ -31,9 +31,13 @@ TIMEOUT=900
 
 while [ "${1:-}" != "" ]; do
     case "$1" in
-        --env) shift; ENVNAME="$1" ;;
+        --env)
+            shift; [ "$#" -ge 1 ] || { echo "--env requires a value" >&2; exit 2; }
+            ENVNAME="$1" ;;
         --no-build) BUILD=0 ;;
-        --timeout) shift; TIMEOUT="$1" ;;
+        --timeout)
+            shift; [ "$#" -ge 1 ] || { echo "--timeout requires a value" >&2; exit 2; }
+            TIMEOUT="$1" ;;
         *) echo "unknown arg: $1" >&2; exit 2 ;;
     esac
     shift

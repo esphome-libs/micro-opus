@@ -30,7 +30,9 @@ shift 4
 TIMEOUT=600
 while [ "${1:-}" != "" ]; do
     case "$1" in
-        --timeout) shift; TIMEOUT="$1" ;;
+        --timeout)
+            shift; [ "$#" -ge 1 ] || { echo "--timeout requires a value" >&2; exit 2; }
+            TIMEOUT="$1" ;;
         *) echo "unknown arg: $1" >&2; exit 2 ;;
     esac
     shift
@@ -49,8 +51,11 @@ if [ -z "$QEMU" ]; then
     fi
 fi
 
-FLASH="$(mktemp "${TMPDIR:-/tmp}/opus_qemu_flash.XXXXXX").bin"
-trap 'rm -f "$FLASH"' EXIT
+# mktemp -d so the .bin name is ours (BSD mktemp only substitutes trailing X's,
+# so a ".bin" suffix on the template would not be unique on macOS).
+FLASHDIR="$(mktemp -d "${TMPDIR:-/tmp}/opus_qemu_flash.XXXXXX")"
+FLASH="$FLASHDIR/flash.bin"
+trap 'rm -rf "$FLASHDIR"' EXIT
 
 echo "==> Assembling 16MB flash image (esp32s3: bl@0x0, pt@0x8000, app@0x10000)"
 dd if=/dev/zero bs=1048576 count=16 2>/dev/null | LC_ALL=C tr '\000' '\377' > "$FLASH"
