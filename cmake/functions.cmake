@@ -40,11 +40,13 @@ function(opus_set_optimization_flags TARGET)
         -O2
         -ffunction-sections
         -fdata-sections
-        # GCC 14+ emits a false-positive -Wmaybe-uninitialized in upstream
-        # silk/NLSF2A.c: cos_LSF_QA[] is filled via a permutation table the
-        # analyzer can't reason about. Demote to a non-fatal warning so
-        # consumers building with -Werror=all (e.g. ESP-IDF defaults) don't
-        # break. Remove once upstream xiph/opus silences this.
-        -Wno-error=maybe-uninitialized
     )
+    # GCC 14+ emits a false-positive -Wmaybe-uninitialized in upstream silk/NLSF2A.c: cos_LSF_QA[]
+    # is filled via a permutation table the analyzer can't reason about. Demote it to non-fatal so
+    # consumers building with -Werror=all (e.g. ESP-IDF defaults) don't break. GCC-only: Clang has
+    # no such warning and would reject the flag as an unknown-warning-option under -Werror. Remove
+    # once upstream xiph/opus silences this.
+    if(CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_compile_options(${TARGET} PRIVATE -Wno-error=maybe-uninitialized)
+    endif()
 endfunction()

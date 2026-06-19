@@ -106,6 +106,10 @@ else()
 
     include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/host.cmake)
 
+    # Treat warnings as errors (off by default; CI sets -DENABLE_WERROR=ON). Applied only to our own
+    # wrapper sources and the host example, never to the bundled upstream Opus C.
+    option(ENABLE_WERROR "Treat warnings as errors" OFF)
+
     # Option for memory allocation mode
     set(OPUS_ALLOCATION_MODE "THREADSAFE_PSEUDOSTACK" CACHE STRING "Memory allocation mode")
     set_property(CACHE OPUS_ALLOCATION_MODE PROPERTY STRINGS
@@ -141,5 +145,25 @@ else()
 
     # Apply host configuration
     opus_configure_host(micro_opus ${CMAKE_CURRENT_SOURCE_DIR} ${OPUS_STAGED_DIR})
+
+    # Strict warnings for our own wrapper sources only. The bundled upstream Opus C is not clean
+    # under this set and is never edited here, so it keeps the relaxed flags from
+    # opus_set_optimization_flags(); scoping these per-source confines them to src/. ENABLE_WERROR
+    # makes them fatal in CI. Mirrors the warning set used across the micro-* libraries.
+    set(MICRO_OPUS_WRAPPER_WARNINGS
+        -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion -Wdouble-promotion
+        -Wformat=2 -Wimplicit-fallthrough)
+    if(ENABLE_WERROR)
+        list(APPEND MICRO_OPUS_WRAPPER_WARNINGS -Werror)
+        # These sources build at -O2 (above), where GCC's -Wmaybe-uninitialized is
+        # false-positive-prone, so keep it non-fatal under GCC (matching opus_set_optimization_flags);
+        # a definite -Wuninitialized still errors. Clang has no such warning and would reject the
+        # flag under -Werror, so gate it on GCC.
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            list(APPEND MICRO_OPUS_WRAPPER_WARNINGS -Wno-error=maybe-uninitialized)
+        endif()
+    endif()
+    set_source_files_properties(${OGG_OPUS_SOURCES} PROPERTIES
+        COMPILE_OPTIONS "${MICRO_OPUS_WRAPPER_WARNINGS}")
 
 endif()

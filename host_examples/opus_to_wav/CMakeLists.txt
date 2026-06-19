@@ -39,6 +39,24 @@ target_link_libraries(opus_to_wav PRIVATE
     micro_opus
 )
 
+# Strict warnings for the example's own sources (the micro_opus library applies its own per-source
+# flags). ENABLE_WERROR, declared in the top-level CMakeLists added above, makes them fatal in CI.
+target_compile_options(opus_to_wav PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+    -Wdouble-promotion
+    -Wformat=2
+    -Wimplicit-fallthrough
+    $<$<BOOL:${ENABLE_WERROR}>:-Werror>
+    # GCC's -Wmaybe-uninitialized is false-positive-prone under optimization; keep it non-fatal
+    # under GCC (matching the wrapper sources). Clang lacks the warning and would reject the flag.
+    $<$<AND:$<BOOL:${ENABLE_WERROR}>,$<CXX_COMPILER_ID:GNU>>:-Wno-error=maybe-uninitialized>
+)
+
 # Install target
 install(TARGETS opus_to_wav
     RUNTIME DESTINATION bin

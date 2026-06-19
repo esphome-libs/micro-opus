@@ -135,7 +135,7 @@ OggOpusResult OggOpusDecoder::validate_granule_position(int64_t granule_pos, siz
         }
 
         if (first_audio_page_samples_ >= 0) {
-            first_audio_page_samples_ += decoded_samples;
+            first_audio_page_samples_ += static_cast<int64_t>(decoded_samples);
 
             if (is_last_on_page) {
                 if (!is_eos && granule_pos < first_audio_page_samples_) {
@@ -166,8 +166,8 @@ OggOpusResult OggOpusDecoder::create_opus_decoder(uint8_t output_channels) {
         packet_decoder_->set_output_gain(opus_head_->output_gain);
     } else {
         opus_ms_decoder_ = opus_multistream_decoder_create(
-            sample_rate_, output_channels, opus_head_->stream_count, opus_head_->coupled_count,
-            opus_head_->channel_mapping_table, &error);
+            static_cast<opus_int32>(sample_rate_), output_channels, opus_head_->stream_count,
+            opus_head_->coupled_count, opus_head_->channel_mapping_table, &error);
 
         if (error != OPUS_OK || !opus_ms_decoder_) {
             return OGG_OPUS_ALLOCATION_FAILED;
