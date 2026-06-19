@@ -4,10 +4,10 @@
 # CONFIG_OPUS_FLOATING_POINT both default to y -- i.e. this firmware exercises
 # exactly the Xtensa LX7 assembly + float decode paths the host suite cannot.
 
-# Deliberately NO PSRAM: the decoder streams a single stream from internal SRAM
-# (PCM is base64'd straight out over the UART, never buffered whole), so the bare
-# qemu-system-xtensa esp32s3 machine -- which has no PSRAM -- boots clean instead
-# of aborting in cpu_start on external-RAM init.
+# Deliberately NO PSRAM: the firmware decodes one frame at a time and streams the
+# raw int16 PCM straight out a dedicated UART (never buffering a whole signal), so
+# the bare qemu-system-xtensa esp32s3 machine, which has no PSRAM, boots clean
+# instead of aborting in cpu_start on external-RAM init.
 
 # Generous main-task stack for the decoder's working buffers.
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=24576
