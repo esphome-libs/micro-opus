@@ -1,6 +1,7 @@
 # microOpus - Embedded Opus Wrapper
 
 [![CI](https://github.com/esphome-libs/micro-opus/actions/workflows/ci.yml/badge.svg)](https://github.com/esphome-libs/micro-opus/actions/workflows/ci.yml)
+[![Component Registry](https://components.espressif.com/components/esphome/micro-opus/badge.svg)](https://components.espressif.com/components/esphome/micro-opus)
 
 An embedded-focused wrapper for the Opus audio codec. Designed as an ESP-IDF component with PSRAM support and Xtensa DSP optimizations for ESP32/ESP32-S3.
 
