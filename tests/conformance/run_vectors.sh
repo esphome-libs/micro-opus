@@ -11,6 +11,11 @@
 #   rate   defaults to 48000 (all RFC 8251 vectors are 48 kHz).
 set -uo pipefail
 
+if [ "$#" -lt 3 ]; then
+    echo "Usage: $(basename "$0") <decode_vectors> <opus_compare> <vector_dir> [tmpdir] [rate]" >&2
+    exit 2
+fi
+
 DECODE="$1"
 COMPARE="$2"
 VEC="$3"

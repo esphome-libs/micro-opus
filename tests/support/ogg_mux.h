@@ -19,6 +19,7 @@
 #ifndef MICRO_OPUS_TESTS_OGG_MUX_H
 #define MICRO_OPUS_TESTS_OGG_MUX_H
 
+#include <cassert>
 #include <cstdint>
 #include <cstring>
 #include <vector>
@@ -35,6 +36,7 @@ namespace detail {
 // Ogg segment-table constants.
 constexpr size_t kOggMaxSegmentSize = 255;
 constexpr size_t kOggSegmentDivisor = 254;
+constexpr size_t kOggMaxSegmentsPerPage = 255;  // Segment count is a single byte (RFC 3533 6.2)
 
 // CRC-32 lookup table (Ogg/Ethernet polynomial 0x04C11DB7, no reflection).
 inline const uint32_t* crc_table() {
@@ -127,6 +129,11 @@ inline std::vector<uint8_t> make_ogg_page(uint8_t header_type, uint64_t granule_
     if (complete_packet && (packet_data.size() % detail::kOggMaxSegmentSize == 0)) {
         ++num_segments;  // Exact multiple of 255 needs an explicit terminating segment
     }
+    // One page holds at most 255 segments (~64 KB), well above any real Opus packet. This enforces
+    // the helper's single-page contract: an oversized packet fails loudly instead of truncating
+    // num_segments to a uint8_t and emitting a malformed page.
+    assert(num_segments <= detail::kOggMaxSegmentsPerPage &&
+           "packet too large for a single Ogg page");
     page.push_back(static_cast<uint8_t>(num_segments));
 
     size_t remaining = packet_data.size();

@@ -25,8 +25,10 @@ set(CMAKE_C_STANDARD 99)
 # Without this the test executables compile at -O0; opus_compare's per-frame FFT then dominates the
 # conformance run over the ~640 s of reference audio and is several times slower. (The Opus library
 # itself is always -O2 via Opus's own build system, which otherwise hides this.) Sanitizer builds
-# are left unoptimized on purpose so UBSan/ASan see un-elided code.
-if(NOT CMAKE_BUILD_TYPE AND NOT ENABLE_SANITIZERS)
+# are left unoptimized on purpose so UBSan/ASan see un-elided code. CMAKE_CONFIGURATION_TYPES skips
+# multi-config generators (Visual Studio, Xcode), where CMAKE_BUILD_TYPE is unused and forcing it
+# would only add a misleading cache entry.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES AND NOT ENABLE_SANITIZERS)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
     message(STATUS "Tests: defaulting CMAKE_BUILD_TYPE to Release")
 endif()
@@ -34,6 +36,15 @@ endif()
 # Sanitizers (recommended for development; CI runs the suite with them on).
 option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 if(ENABLE_SANITIZERS)
+    # The flags below are GCC/Clang -fsanitize syntax. clang-cl reports "Clang" but consumes
+    # MSVC-style flags, so exclude the MSVC frontend explicitly rather than emit flags it rejects.
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang"
+       OR CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+        message(FATAL_ERROR
+            "ENABLE_SANITIZERS supports GCC/Clang only, but the C++ compiler is "
+            "'${CMAKE_CXX_COMPILER_ID}' (frontend '${CMAKE_CXX_COMPILER_FRONTEND_VARIANT}'). "
+            "Disable ENABLE_SANITIZERS or configure with GCC/Clang.")
+    endif()
     message(STATUS "Tests: building with AddressSanitizer + UndefinedBehaviorSanitizer")
     set(_san_flags "-fsanitize=address,undefined -fno-omit-frame-pointer -g")
     string(APPEND CMAKE_C_FLAGS " ${_san_flags}")
