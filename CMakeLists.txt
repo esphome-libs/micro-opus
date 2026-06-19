@@ -102,7 +102,7 @@ if(ESP_IDF_BUILD)
 
 else()
     cmake_minimum_required(VERSION 3.16)
-    project(micro_opus C CXX)
+    project(micro_opus VERSION 0.5.0 LANGUAGES C CXX)
 
     include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/host.cmake)
 
