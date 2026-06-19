@@ -51,22 +51,21 @@ WavWriter::WavWriter(const std::string& filename, uint32_t sample_rate, uint16_t
     : file_(fopen(filename.c_str(), "wb")),
       sample_rate_(sample_rate),
       num_channels_(num_channels),
-      bits_per_sample_(bits_per_sample),
-      samples_written_(0) {
+      bits_per_sample_(bits_per_sample) {
     if (file_) {
-        writeHeader();
+        write_header();
     }
 }
 
 WavWriter::~WavWriter() {
     if (file_) {
-        updateHeader();
+        update_header();
         fclose(file_);
         file_ = nullptr;
     }
 }
 
-void WavWriter::writeHeader() {
+void WavWriter::write_header() {
     RIFFHeader riff{};
     memcpy(riff.chunk_id, "RIFF", 4);
     riff.chunk_size = 0;  // Will update later
@@ -91,7 +90,7 @@ void WavWriter::writeHeader() {
     fwrite(&data, sizeof(data), 1, file_);
 }
 
-void WavWriter::updateHeader() {
+void WavWriter::update_header() {
     if (!file_) {
         return;
     }
@@ -111,7 +110,7 @@ void WavWriter::updateHeader() {
     fseek(file_, 0, SEEK_END);
 }
 
-bool WavWriter::writeSamples(const int16_t* samples, size_t num_samples) {
+bool WavWriter::write_samples(const int16_t* samples, size_t num_samples) {
     if (!file_ || !samples || num_samples == 0) {
         return false;
     }

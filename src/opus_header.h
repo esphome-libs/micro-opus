@@ -19,8 +19,8 @@
 #ifndef OPUS_HEADER_H
 #define OPUS_HEADER_H
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 
 namespace micro_opus {
 
@@ -44,7 +44,7 @@ struct OpusHead {
 /**
  * @brief Result codes for header parsing
  */
-enum OpusHeaderResult {
+enum OpusHeaderResult : int8_t {
     OPUS_HEADER_OK = 0,
     OPUS_HEADER_INVALID_MAGIC = -1,
     OPUS_HEADER_INVALID_VERSION = -2,

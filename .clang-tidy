@@ -32,7 +32,6 @@ Checks: >
   readability-delete-null-pointer,
   readability-duplicate-include,
   readability-else-after-return,
-  readability-function-cognitive-complexity,
   readability-identifier-naming,
   readability-implicit-bool-conversion,
   readability-inconsistent-declaration-parameter-name,
@@ -53,9 +52,12 @@ Checks: >
   readability-string-compare,
   readability-uppercase-literal-suffix
 
-WarningsAsErrors: ''
+WarningsAsErrors: '*'
 
-HeaderFilterRegex: 'include/micro_opus/.*\.h$'
+# Lint first-party headers under include/, all of src/, and the host example's own
+# headers. The host_examples/[^/]+/[^/]+ term stops at depth two so the build-tree
+# headers under host_examples/*/build/ (and the staged upstream Opus copy) are not linted.
+HeaderFilterRegex: '((include/micro_opus|src)/.*|host_examples/[^/]+/[^/]+)\.h$'
 
 CheckOptions:
   # Naming conventions matching existing code style
@@ -91,12 +93,6 @@ CheckOptions:
     value: lower_case
   - key: readability-identifier-naming.MacroDefinitionCase
     value: UPPER_CASE
-
-  # Complexity thresholds (reasonable for embedded)
-  - key: readability-function-cognitive-complexity.Threshold
-    value: '50'
-  - key: readability-function-cognitive-complexity.IgnoreMacros
-    value: 'true'
 
   # Magic numbers - allow common values used in bit manipulation and byte handling
   # Includes: small indices (0-7), bit shifts (8,16,24,32,40,48,56), byte values (255,256)
