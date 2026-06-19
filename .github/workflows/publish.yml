@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
 
+# Least privilege: jobs only read the repo to check out and publish. Jobs that need more should
+# add a narrower job-level permissions block rather than widening this default.
+permissions:
+  contents: read
+
 jobs:
   publish-platformio:
     name: Publish to PlatformIO
@@ -29,6 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: espressif
     permissions:
+      contents: read
       id-token: write
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
