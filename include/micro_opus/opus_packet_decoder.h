@@ -92,7 +92,7 @@ public:
     /// output_size_bytes.
     /// @return Output buffer size in bytes (all channels)
     uint32_t max_output_bytes() const {
-        return (this->sample_rate_ / 1000u * 120u) * this->num_channels_ * this->bytes_per_sample();
+        return (this->sample_rate_ / 1000U * 120U) * this->num_channels_ * this->bytes_per_sample();
     }
     /// @brief Number of output channels (1 = mono, 2 = stereo)
     /// @return Output channel count

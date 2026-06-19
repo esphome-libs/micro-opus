@@ -27,13 +27,13 @@
 
 namespace {
 
-constexpr uint32_t kSerialNumber = 12345;
-constexpr uint32_t kFrameSize = 960;  // 20 ms @ 48 kHz
+constexpr uint32_t SERIAL_NUMBER = 12345;
+constexpr uint32_t FRAME_SIZE = 960;  // 20 ms @ 48 kHz
 
-using micro_opus_test::kOggFlagBos;
 using micro_opus_test::make_ogg_page;
 using micro_opus_test::make_opus_head_family1;
 using micro_opus_test::make_opus_tags;
+using micro_opus_test::OGG_FLAG_BOS;
 
 // Encode one 20 ms stereo frame of silence with libopus. The OpusHead below declares a single
 // coupled (stereo) stream, so its packets must be well-formed stereo Opus packets. Returns empty on
@@ -44,9 +44,9 @@ std::vector<uint8_t> make_silent_stereo_packet() {
     if (enc == nullptr || err != OPUS_OK) {
         return {};
     }
-    const std::vector<int16_t> silence(static_cast<size_t>(kFrameSize) * 2, 0);
+    const std::vector<int16_t> silence(static_cast<size_t>(FRAME_SIZE) * 2, 0);
     std::vector<uint8_t> packet(4000);
-    const int bytes = opus_encode(enc, silence.data(), static_cast<int>(kFrameSize), packet.data(),
+    const int bytes = opus_encode(enc, silence.data(), static_cast<int>(FRAME_SIZE), packet.data(),
                                   static_cast<opus_int32>(packet.size()));
     opus_encoder_destroy(enc);
     if (bytes < 0) {
@@ -76,16 +76,16 @@ int main() {
     auto append = [&stream](const std::vector<uint8_t>& page) {
         stream.insert(stream.end(), page.begin(), page.end());
     };
-    append(make_ogg_page(kOggFlagBos, 0, kSerialNumber, 0, opus_head));
-    append(make_ogg_page(0x00, 0, kSerialNumber, 1, make_opus_tags()));
-    append(make_ogg_page(0x00, kFrameSize, kSerialNumber, 2, audio_packet));
+    append(make_ogg_page(OGG_FLAG_BOS, 0, SERIAL_NUMBER, 0, opus_head));
+    append(make_ogg_page(0x00, 0, SERIAL_NUMBER, 1, make_opus_tags()));
+    append(make_ogg_page(0x00, FRAME_SIZE, SERIAL_NUMBER, 2, audio_packet));
 
     std::printf("Created test stream: 3 channels [0,1,255], 1 coupled stereo stream, %zu bytes\n\n",
                 stream.size());
 
     micro_opus::OggOpusDecoder decoder;
-    constexpr size_t kNumChannels = 3;
-    int16_t pcm_buffer[kFrameSize * kNumChannels];
+    constexpr size_t NUM_CHANNELS = 3;
+    int16_t pcm_buffer[FRAME_SIZE * NUM_CHANNELS];
     size_t consumed = 0;
     size_t samples_decoded = 0;
     size_t total_consumed = 0;
@@ -111,13 +111,13 @@ int main() {
             std::printf("Decoded %zu samples/channel, %u channels @ %u Hz\n", samples_decoded,
                         decoder.get_channels(), decoder.get_sample_rate());
 
-            if (decoder.get_channels() != kNumChannels) {
+            if (decoder.get_channels() != NUM_CHANNELS) {
                 std::printf("ERROR: Expected 3 channels, got %u\n", decoder.get_channels());
                 return 1;
             }
 
             for (size_t i = 0; i < samples_decoded; ++i) {
-                const int16_t center = pcm_buffer[i * kNumChannels + 2];
+                const int16_t center = pcm_buffer[i * NUM_CHANNELS + 2];
                 if (center != 0) {
                     std::printf("ERROR: Silent channel not silent at sample %zu: %d\n", i, center);
                     return 1;

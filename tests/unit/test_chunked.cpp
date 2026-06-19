@@ -31,14 +31,14 @@
 
 namespace {
 
-constexpr uint32_t kSampleRate = 48000;
-constexpr uint8_t kChannels = 2;
-constexpr int kFrameSamples = 960;  // 20 ms @ 48 kHz, per channel
-constexpr uint16_t kPreSkip = 312;  // Standard Opus pre-skip
-constexpr int kNumPackets = 50;     // 1 s of audio
-constexpr uint32_t kSerial = 0xCAFE;
-constexpr size_t kTinyChunk = 64;  // Deliberately tiny input chunks
-constexpr size_t kMaxIterations = 1000000;
+constexpr uint32_t SAMPLE_RATE = 48000;
+constexpr uint8_t CHANNELS = 2;
+constexpr int FRAME_SAMPLES = 960;  // 20 ms @ 48 kHz, per channel
+constexpr uint16_t PRE_SKIP = 312;  // Standard Opus pre-skip
+constexpr int NUM_PACKETS = 50;     // 1 s of audio
+constexpr uint32_t SERIAL = 0xCAFE;
+constexpr size_t TINY_CHUNK = 64;  // Deliberately tiny input chunks
+constexpr size_t MAX_ITERATIONS = 1000000;
 
 int g_failures = 0;
 
@@ -49,10 +49,10 @@ void check(bool condition, const char* message) {
     }
 }
 
-// Encode kNumPackets stereo sine frames and mux them into a complete Ogg Opus byte stream.
+// Encode NUM_PACKETS stereo sine frames and mux them into a complete Ogg Opus byte stream.
 std::vector<uint8_t> build_ogg_stream() {
     int err = 0;
-    OpusEncoder* enc = opus_encoder_create(kSampleRate, kChannels, OPUS_APPLICATION_AUDIO, &err);
+    OpusEncoder* enc = opus_encoder_create(SAMPLE_RATE, CHANNELS, OPUS_APPLICATION_AUDIO, &err);
     if (enc == nullptr || err != OPUS_OK) {
         std::printf("  FAIL: opus_encoder_create returned %d\n", err);
         return {};
@@ -67,22 +67,22 @@ std::vector<uint8_t> build_ogg_stream() {
         stream.insert(stream.end(), page.begin(), page.end());
     };
     append(micro_opus_test::make_ogg_page(
-        micro_opus_test::kOggFlagBos, 0, kSerial, 0,
-        micro_opus_test::make_opus_head_family0(kChannels, kPreSkip)));
-    append(micro_opus_test::make_ogg_page(0x00, 0, kSerial, 1, micro_opus_test::make_opus_tags()));
+        micro_opus_test::OGG_FLAG_BOS, 0, SERIAL, 0,
+        micro_opus_test::make_opus_head_family0(CHANNELS, PRE_SKIP)));
+    append(micro_opus_test::make_ogg_page(0x00, 0, SERIAL, 1, micro_opus_test::make_opus_tags()));
 
-    std::vector<int16_t> pcm(static_cast<size_t>(kFrameSamples) * kChannels);
+    std::vector<int16_t> pcm(static_cast<size_t>(FRAME_SAMPLES) * CHANNELS);
     double phase = 0.0;
-    const double step = 2.0 * 3.14159265358979323846 * 440.0 / kSampleRate;
-    for (int p = 0; p < kNumPackets; ++p) {
-        for (int i = 0; i < kFrameSamples; ++i) {
+    const double step = 2.0 * 3.14159265358979323846 * 440.0 / SAMPLE_RATE;
+    for (int p = 0; p < NUM_PACKETS; ++p) {
+        for (int i = 0; i < FRAME_SAMPLES; ++i) {
             const int16_t s = static_cast<int16_t>(std::lround(std::sin(phase) * 10000.0));
-            pcm[static_cast<size_t>(i) * kChannels + 0] = s;
-            pcm[static_cast<size_t>(i) * kChannels + 1] = s;
+            pcm[static_cast<size_t>(i) * CHANNELS + 0] = s;
+            pcm[static_cast<size_t>(i) * CHANNELS + 1] = s;
             phase += step;
         }
         std::vector<uint8_t> packet(4000);
-        const int bytes = opus_encode(enc, pcm.data(), kFrameSamples, packet.data(),
+        const int bytes = opus_encode(enc, pcm.data(), FRAME_SAMPLES, packet.data(),
                                       static_cast<opus_int32>(packet.size()));
         if (bytes < 0) {
             std::printf("  FAIL: opus_encode returned %d\n", bytes);
@@ -91,9 +91,9 @@ std::vector<uint8_t> build_ogg_stream() {
         }
         packet.resize(static_cast<size_t>(bytes));
 
-        const uint64_t granule = static_cast<uint64_t>(p + 1) * kFrameSamples;
-        const uint8_t flags = (p == kNumPackets - 1) ? micro_opus_test::kOggFlagEos : 0x00;
-        append(micro_opus_test::make_ogg_page(flags, granule, kSerial, 2 + p, packet));
+        const uint64_t granule = static_cast<uint64_t>(p + 1) * FRAME_SAMPLES;
+        const uint8_t flags = (p == NUM_PACKETS - 1) ? micro_opus_test::OGG_FLAG_EOS : 0x00;
+        append(micro_opus_test::make_ogg_page(flags, granule, SERIAL, 2 + p, packet));
     }
     opus_encoder_destroy(enc);
     return stream;
@@ -109,25 +109,25 @@ int main() {
     if (stream.empty()) {
         return 1;
     }
-    std::printf("Built %d-packet stream, %zu bytes\n", kNumPackets, stream.size());
+    std::printf("Built %d-packet stream, %zu bytes\n", NUM_PACKETS, stream.size());
 
     micro_opus::OggOpusDecoder decoder;
 
-    // A sliding window that we top up kTinyChunk bytes at a time from the source stream. Sized
+    // A sliding window that we top up TINY_CHUNK bytes at a time from the source stream. Sized
     // generously so it can hold a full (multi-segment) page while still being fed 64 bytes at a
     // time. The chunk size, not the window size, is what stresses the buffering.
     std::vector<uint8_t> window(4096);
     size_t window_used = 0;
     size_t src_pos = 0;
 
-    std::vector<int16_t> pcm(static_cast<size_t>(kFrameSamples) * kChannels);
+    std::vector<int16_t> pcm(static_cast<size_t>(FRAME_SAMPLES) * CHANNELS);
 
     size_t total_samples = 0;
     size_t total_packets = 0;
     size_t iterations = 0;
 
     while (src_pos < stream.size() || window_used > 0) {
-        if (++iterations > kMaxIterations) {
+        if (++iterations > MAX_ITERATIONS) {
             std::printf("  FAIL: iteration cap hit (possible infinite loop)\n");
             return 1;
         }
@@ -135,7 +135,7 @@ int main() {
         // Top up the window with one tiny chunk.
         if (src_pos < stream.size() && window_used < window.size()) {
             const size_t space = window.size() - window_used;
-            const size_t to_copy = std::min({space, kTinyChunk, stream.size() - src_pos});
+            const size_t to_copy = std::min({space, TINY_CHUNK, stream.size() - src_pos});
             std::memcpy(window.data() + window_used, stream.data() + src_pos, to_copy);
             window_used += to_copy;
             src_pos += to_copy;
@@ -192,15 +192,15 @@ int main() {
 
     std::printf("Decoded %zu packets, %zu samples/channel\n", total_packets, total_samples);
 
-    // Pre-skip trims kPreSkip samples from the front; with a matching final granule the decoder
-    // emits (kNumPackets * kFrameSamples - kPreSkip) samples per channel.
-    const size_t expected = static_cast<size_t>(kNumPackets) * kFrameSamples - kPreSkip;
+    // Pre-skip trims PRE_SKIP samples from the front; with a matching final granule the decoder
+    // emits (NUM_PACKETS * FRAME_SAMPLES - PRE_SKIP) samples per channel.
+    const size_t expected = static_cast<size_t>(NUM_PACKETS) * FRAME_SAMPLES - PRE_SKIP;
     check(total_samples == expected, "sample count == frames*960 - pre_skip");
     if (total_samples != expected) {
         std::printf("    expected %zu, got %zu\n", expected, total_samples);
     }
-    check(decoder.get_channels() == kChannels, "decoder reports stereo");
-    check(decoder.get_sample_rate() == kSampleRate, "decoder reports 48 kHz");
+    check(decoder.get_channels() == CHANNELS, "decoder reports stereo");
+    check(decoder.get_sample_rate() == SAMPLE_RATE, "decoder reports 48 kHz");
 
     if (g_failures == 0) {
         std::printf("PASS: decoder handled 64-byte chunks correctly\n");

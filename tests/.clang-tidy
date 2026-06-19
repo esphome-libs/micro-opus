@@ -1,0 +1,14 @@
+# Test code inherits every rule from the root .clang-tidy, with two exceptions:
+#   - readability-magic-numbers: tests craft byte streams, Ogg pages, and fixed sample
+#     counts inline, where naming every literal would hurt readability more than help.
+#   - bugprone-exception-escape: each test's main() lets exceptions propagate to fail the
+#     run; that escape is intentional, not a bug.
+# All other checks (naming, modernize, the rest of bugprone, etc.) still apply.
+#
+# HeaderFilterRegex covers the test-only headers (e.g. support/ogg_mux.h) so they are
+# formally checked too. It is scoped to the test source dirs on purpose: the staged
+# upstream Opus copy lives under tests/build/, and production headers pulled in by tests
+# are checked by the src/ pass, so neither should be matched here.
+InheritParentConfig: true
+Checks: '-readability-magic-numbers,-bugprone-exception-escape'
+HeaderFilterRegex: 'tests/(support|unit|conformance)/.*\.h$'
