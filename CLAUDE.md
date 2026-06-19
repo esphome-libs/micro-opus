@@ -22,6 +22,7 @@ host_examples/           # Host platform tools (opus_to_wav)
 tests/                   # Host CTest suite (unit + opus_compare conformance)
   unit/                  # Wrapper/parser tests
   conformance/           # opus_compare validation against RFC test vectors
+  qemu/                  # On-target (ESP32-S3 QEMU) conformance: validates Xtensa asm
   support/               # Shared test helpers (in-memory Ogg muxing)
   tools/                 # Measurement tools (opt-in)
   fetch_vectors.sh       # Downloads the RFC 8251 test vectors

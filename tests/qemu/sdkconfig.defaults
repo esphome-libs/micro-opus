@@ -1,0 +1,29 @@
+# Test-firmware defaults, shared by the PlatformIO (local) and idf.py (CI) builds.
+#
+# Target is esp32s3, where CONFIG_OPUS_ENABLE_XTENSA_OPTIMIZATIONS and
+# CONFIG_OPUS_FLOATING_POINT both default to y -- i.e. this firmware exercises
+# exactly the Xtensa LX7 assembly + float decode paths the host suite cannot.
+
+# Deliberately NO PSRAM: the decoder streams a single stream from internal SRAM
+# (PCM is base64'd straight out over the UART, never buffered whole), so the bare
+# qemu-system-xtensa esp32s3 machine -- which has no PSRAM -- boots clean instead
+# of aborting in cpu_start on external-RAM init.
+
+# Generous main-task stack for the decoder's working buffers.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=24576
+
+# The firmware runs to completion and then parks in a busy loop; no watchdog.
+CONFIG_ESP_TASK_WDT_EN=n
+CONFIG_ESP_TASK_WDT_INIT=n
+
+# Match the benchmark's optimization level so codegen is representative.
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# Threadsafe pseudostack, matching the component default used on-device.
+CONFIG_OPUS_THREADSAFE_PSEUDOSTACK=y
+
+# 16 MB flash with a custom partition table: the embedded ".bit" vectors push the
+# app image well past the default 4 MB factory partition (see partitions.csv).
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
