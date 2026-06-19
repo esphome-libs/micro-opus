@@ -1,12 +1,70 @@
 {
-    "name": "micro-opus",
-    "version": "0.5.0",
-    "description": "Wrapper for the Opus audio codec with PSRAM support and Xtensa DSP optimizations",
-    "keywords": ["opus", "audio", "codec"],
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/esphome-libs/micro-opus"
-    },
-    "frameworks": "espidf",
-    "platforms": "espressif32"
+  "name": "micro-opus",
+  "version": "0.5.0",
+  "description": "Wrapper for the Opus audio codec with PSRAM support and Xtensa DSP optimizations",
+  "keywords": ["opus", "audio", "codec"],
+  "license": "Apache-2.0 AND BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/esphome-libs/micro-opus"
+  },
+  "authors": [
+    {
+      "name": "Kevin Ahrendt",
+      "email": "kevin.ahrendt@openhomefoundation.org",
+      "maintainer": true
+    }
+  ],
+  "frameworks": ["espidf"],
+  "platforms": ["espressif32"],
+  "export": {
+    "include": [
+      "src/*",
+      "include/*",
+      "lib/*",
+      "cmake/*",
+      "patches/*",
+      "CMakeLists.txt",
+      "Kconfig",
+      "LICENSE",
+      "NOTICE",
+      "README.md",
+      "library.json",
+      "idf_component.yml"
+    ],
+    "exclude": [
+      "**/.DS_Store",
+      "lib/opus/.git",
+      "lib/opus/.git*",
+      "lib/opus/.github/**",
+      "lib/opus/.gitlab-ci.yml",
+      "lib/opus/doc/**",
+      "lib/opus/dnn/**",
+      "lib/opus/tests/**",
+      "lib/opus/training/**",
+      "lib/opus/scripts/**",
+      "lib/opus/m4/**",
+      "lib/opus/meson/**",
+      "lib/opus/meson.build",
+      "lib/opus/meson_options.txt",
+      "lib/opus/*.mk",
+      "lib/opus/Makefile.*",
+      "lib/opus/autogen.*",
+      "lib/opus/configure.ac",
+      "lib/opus/*.m4",
+      "lib/opus/*.pc.in",
+      "lib/opus/create_opus_data.sh",
+      "lib/opus/update_version",
+      "lib/opus/tar_list.txt",
+      "lib/opus/releases.sha2",
+      "lib/micro-ogg-demuxer/.git",
+      "lib/micro-ogg-demuxer/.github/**",
+      "lib/micro-ogg-demuxer/.clang-*",
+      "lib/micro-ogg-demuxer/.gitignore",
+      "lib/micro-ogg-demuxer/.markdownlint.yaml",
+      "lib/micro-ogg-demuxer/.pre-commit-config.yaml",
+      "lib/micro-ogg-demuxer/CLAUDE.md",
+      "lib/micro-ogg-demuxer/script/**"
+    ]
+  }
 }
