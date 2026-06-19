@@ -49,7 +49,7 @@ if [ -z "$QEMU" ]; then
     fi
 fi
 
-FLASH="$(mktemp -t opus_qemu_flash).bin"
+FLASH="$(mktemp "${TMPDIR:-/tmp}/opus_qemu_flash.XXXXXX").bin"
 trap 'rm -f "$FLASH"' EXIT
 
 echo "==> Assembling 16MB flash image (esp32s3: bl@0x0, pt@0x8000, app@0x10000)"
