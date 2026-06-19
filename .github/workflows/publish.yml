@@ -63,7 +63,9 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          submodules: recursive
+          submodules: false
+      - name: Initialize library submodules
+        run: git submodule update --init --depth 1 lib/opus lib/micro-ogg-demuxer
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -86,7 +88,9 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          submodules: recursive
+          submodules: false
+      - name: Initialize library submodules
+        run: git submodule update --init --depth 1 lib/opus lib/micro-ogg-demuxer
       - name: Publish package
         uses: espressif/upload-components-ci-action@2ce17d73e35473317c1419dbd4f007aacb593040 # v2.2.1
         with:
