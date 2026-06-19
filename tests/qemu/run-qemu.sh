@@ -8,7 +8,12 @@
 # the espressif/idf image (see .github/workflows/ci.yml); this is the local loop.
 #
 # Usage:
-#   tests/qemu/run-qemu.sh [--no-build] [--timeout SECONDS]
+#   tests/qemu/run-qemu.sh [--env NAME] [--no-build] [--timeout SECONDS]
+#
+# --env picks the PlatformIO env: esp32s3 (float, default) or esp32s3_fixed
+# (fixed-point). The fixed variant exercises fixed_lx7.h and the FIXED_POINT path
+# of pitch_lx7.h, which the float build never compiles. Run it for both to cover
+# both decode paths.
 #
 # Requirements:
 #   - PlatformIO (pio) on PATH.
@@ -26,6 +31,7 @@ TIMEOUT=900
 
 while [ "${1:-}" != "" ]; do
     case "$1" in
+        --env) shift; ENVNAME="$1" ;;
         --no-build) BUILD=0 ;;
         --timeout) shift; TIMEOUT="$1" ;;
         *) echo "unknown arg: $1" >&2; exit 2 ;;
@@ -33,7 +39,8 @@ while [ "${1:-}" != "" ]; do
     shift
 done
 
-WORK="$PROJ/.pio/qemu-work"
+# Per-env work dir so the float and fixed runs do not clobber each other's logs.
+WORK="$PROJ/.pio/qemu-work/$ENVNAME"
 mkdir -p "$WORK"
 
 if [ "$BUILD" = "1" ]; then

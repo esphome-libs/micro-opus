@@ -1,0 +1,7 @@
+# Fixed-point variant of the QEMU conformance firmware, layered on top of
+# sdkconfig.defaults. The ESP32-S3 defaults to the floating-point decoder, so the
+# base build never exercises the fixed-point path. Forcing fixed-point here
+# covers the fixed decode code and its Xtensa asm (fixed_lx7.h and the
+# FIXED_POINT path of pitch_lx7.h); CONFIG_OPUS_ENABLE_XTENSA_OPTIMIZATIONS stays
+# on by default, so the assembly is still compiled.
+CONFIG_OPUS_FLOATING_POINT=n

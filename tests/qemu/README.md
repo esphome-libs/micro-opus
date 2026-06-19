@@ -3,14 +3,25 @@
 Runs the RFC 8251 decoder-conformance vectors on an emulated ESP32-S3 under
 `qemu-system-xtensa` to exercise the Xtensa LX7 assembly. The host suite
 (`tests/conformance/`) builds with host gcc/clang and never compiles the Xtensa
-paths. This firmware is built with xtensa-gcc for `esp32s3`, where
-`CONFIG_OPUS_ENABLE_XTENSA_OPTIMIZATIONS` and the float decode path are on by
-default, so it covers the code the host suite cannot:
+paths. This firmware is built with xtensa-gcc for `esp32s3`, with
+`CONFIG_OPUS_ENABLE_XTENSA_OPTIMIZATIONS` on, so it covers the asm the host suite
+cannot:
 
-- `fixed_lx7.h`: `mulsh` / `clamps` fixed-point multiplies
-- `pitch_lx7.h`: `dual_inner_prod` on the Xtensa MAC unit
-- `mathops_lx7.c`: `loopnez` float-to-int16 conversion
-- `silk/.../SigProc_FLP_lx7.h`: `round.s` / `float.s` SILK conversions
+- `mathops_lx7.c`: `loopnez` float-to-int16 conversion (float build)
+- `silk/.../SigProc_FLP_lx7.h`: `round.s` / `float.s` SILK conversions (float build)
+- `fixed_lx7.h`: `mulsh` / `clamps` fixed-point multiplies (fixed build)
+- `pitch_lx7.h`: `dual_inner_prod` on the Xtensa MAC unit (both; the `FIXED_POINT`
+  path only in the fixed build)
+
+There are two build variants, since the ESP32-S3 selects float or fixed at
+compile time and the two paths use different assembly:
+
+- **`esp32s3`** (float): the S3 default (`CONFIG_OPUS_FLOATING_POINT=y`).
+- **`esp32s3_fixed`** (fixed-point): layers `sdkconfig.fixed.defaults` to set
+  `CONFIG_OPUS_FLOATING_POINT=n`. Same target and image, so `run-image.sh` and
+  `compare.sh` are unchanged.
+
+Run both to cover both decode paths. CI runs them as a matrix.
 
 ## How it works
 
@@ -39,8 +50,9 @@ build must support `-machine esp32s3` (the Espressif fork, not vanilla Homebrew
 QEMU). It runs natively on macOS, Apple Silicon and Intel; no Docker.
 
 ```bash
-tests/fetch_vectors.sh          # once: vectors must exist before the firmware build
-tests/qemu/run-qemu.sh          # build firmware, run under QEMU, compare
+tests/fetch_vectors.sh                     # once: vectors must exist before the build
+tests/qemu/run-qemu.sh                     # float build, run under QEMU, compare
+tests/qemu/run-qemu.sh --env esp32s3_fixed # fixed-point build
 tests/qemu/run-qemu.sh --no-build --timeout 900
 ```
 
@@ -55,7 +67,8 @@ CI runs the same firmware via `idf.py` in the `espressif/idf` container; see the
 | `main/embed_vectors.py` | Writes `vectors_data.c` from `tests/vectors/*.bit` at configure time |
 | `main/qemu_vectors.h` | Declares the embedded-vector table |
 | `partitions.csv` | 12 MB factory app partition to hold the embedded `.bit` inputs |
-| `sdkconfig.defaults` | esp32s3, no PSRAM, 16 MB flash, perf optimization |
+| `sdkconfig.defaults` | esp32s3, no PSRAM, 16 MB flash, perf optimization (float) |
+| `sdkconfig.fixed.defaults` | Fragment layered for the fixed-point variant (`CONFIG_OPUS_FLOATING_POINT=n`) |
 | `run-image.sh` | Assemble the flash image, run QEMU, capture UART0 to the log and UART1 to `<log>.pcm` |
 | `compare.sh` | Carve `<log>.pcm` by the `@@END` byte counts and run `opus_compare` against the references |
 | `run-qemu.sh` | Local driver: PlatformIO build, then `run-image.sh`, then `compare.sh` |

@@ -114,12 +114,23 @@ jobs:
         run: ctest --test-dir build -L conformance --output-on-failure
 
   cross-qemu:
-    name: Cross (Xtensa QEMU conformance)
+    name: Cross (Xtensa QEMU conformance, ${{ matrix.variant }})
     runs-on: ubuntu-latest
     # esp-idf version matches the PlatformIO framework (esp-idf v5.4.x) so the
     # xtensa-gcc codegen is the same as the local run. Xtensa emulation is
     # native-speed on the amd64 runner.
     container: espressif/idf:v5.4.1
+    # Float is the ESP32-S3 default; fixed layers sdkconfig.fixed.defaults to
+    # exercise the fixed-point decode path and fixed_lx7.h. Separate runners so
+    # the two QEMU runs go in parallel.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: float
+            sdkconfig_defaults: sdkconfig.defaults
+          - variant: fixed
+            sdkconfig_defaults: sdkconfig.defaults;sdkconfig.fixed.defaults
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -154,7 +165,9 @@ jobs:
         shell: bash
         run: |
           . "$IDF_PATH/export.sh"
-          idf.py -C tests/qemu set-target esp32s3 build
+          idf.py -C tests/qemu \
+            -DSDKCONFIG_DEFAULTS="${{ matrix.sdkconfig_defaults }}" \
+            set-target esp32s3 build
 
       - name: Decode vectors under QEMU and compare on host
         shell: bash
