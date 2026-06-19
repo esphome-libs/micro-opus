@@ -135,7 +135,7 @@ OggOpusResult OggOpusDecoder::validate_granule_position(int64_t granule_pos, siz
         }
 
         if (first_audio_page_samples_ >= 0) {
-            first_audio_page_samples_ += decoded_samples;
+            first_audio_page_samples_ += static_cast<int64_t>(decoded_samples);
 
             if (is_last_on_page) {
                 if (!is_eos && granule_pos < first_audio_page_samples_) {
