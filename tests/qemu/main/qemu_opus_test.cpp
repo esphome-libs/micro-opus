@@ -80,7 +80,8 @@ uint32_t read_be32(const uint8_t* p) {
 // when a decode fails partway). *out_bytes receives that count; returns whether
 // the decode completed without error.
 bool decode_vector(const qemu_vector_t& vec, int channels, long* out_bytes) {
-    std::printf("@@VEC name=%s ch=%d rate=%u\n", vec.name, channels, kSampleRate);
+    std::printf("@@VEC name=%s ch=%d rate=%u\n", vec.name, channels,
+                static_cast<unsigned>(kSampleRate));
     std::fflush(stdout);
 
     micro_opus::OpusPacketDecoder decoder(kSampleRate, static_cast<uint8_t>(channels));
