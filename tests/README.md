@@ -8,6 +8,11 @@ runs two kinds of tests through CTest:
 - **`conformance/`** validates our patched libopus by decoding the official Opus test vectors with
   our decoder and comparing each result against the reference decode with upstream `opus_compare`.
 
+A third suite, **`qemu/`**, runs the same conformance vectors on an emulated ESP32-S3 under
+`qemu-system-xtensa` to validate the Xtensa assembly optimizations that this host suite cannot
+compile. It is a standalone ESP-IDF firmware project, not a CTest target; see
+[`qemu/README.md`](qemu/README.md).
+
 ## Running
 
 ```bash
@@ -65,7 +70,7 @@ The host build is fixed-point and the decode still passes against the float-deri
 because `opus_compare` uses a perceptual threshold, not bit-exactness. The vectors are decoder
 vectors, so they validate the decode path (notably the always-on `celt_stack_alloc` patch). The
 Xtensa DSP optimizations build only for ESP32/ESP32-S3 targets, so they are not exercised by this
-host suite.
+host suite. The [`qemu/`](qemu/README.md) suite covers them on an emulated ESP32-S3.
 
 ## Tools
 

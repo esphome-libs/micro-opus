@@ -1,0 +1,10 @@
+# Custom partition table for the QEMU conformance firmware.
+#
+# The 12 RFC test-vector ".bit" inputs (~3.5 MB total) are embedded directly in
+# the app image (see embed_vectors.py), so the factory app partition is sized
+# far larger than a normal firmware. A 16 MB flash leaves generous headroom.
+#
+# Name,     Type, SubType, Offset,   Size
+nvs,        data, nvs,     0x9000,   0x6000
+phy_init,   data, phy,     0xf000,   0x1000
+factory,    app,  factory, 0x10000,  0xC00000

@@ -103,6 +103,20 @@ examples/*/build/
 examples/*/sdkconfig
 examples/*/sdkconfig.old
 
+# PlatformIO build output
+.pio/
+
+# QEMU conformance firmware build artifacts (tests/qemu)
+tests/qemu/build/
+tests/qemu/sdkconfig
+tests/qemu/sdkconfig.old
+# Generated per-env sdkconfig (resolved from sdkconfig.defaults at build time);
+# only sdkconfig.defaults and sdkconfig.fixed.defaults are tracked sources.
+tests/qemu/sdkconfig.esp32s3*
+# Embedded test vectors: generated from tests/vectors/*.bit at configure time
+# into the build dir (main/CMakeLists.txt). A copy in the source tree is stale.
+tests/qemu/vectors_data.c
+
 # Benchmark/test data
 *.tar.gz
 *.tar

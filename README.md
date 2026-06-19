@@ -240,6 +240,10 @@ cmake --build tests/build
 ctest --test-dir tests/build --output-on-failure
 ```
 
+An on-target conformance suite in [`tests/qemu/`](tests/qemu/) runs the same RFC 8251 vectors on an
+emulated ESP32-S3 under `qemu-system-xtensa` to exercise the Xtensa LX7 assembly that the host suite
+cannot compile. See [tests/qemu/README.md](tests/qemu/README.md).
+
 ## License
 
 This project uses a dual-license structure:

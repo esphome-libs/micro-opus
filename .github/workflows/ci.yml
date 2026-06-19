@@ -6,6 +6,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    # `labeled` lets the `ci-run-qemu` label start a run. Every job except changes/cross-qemu is
+    # gated on `github.event.action != 'labeled'`, so labeling re-runs only QEMU, not the whole suite.
+    types: [opened, synchronize, reopened, labeled]
 
 # Least privilege: every job here only reads the repo (checkout, build, test, cache). Jobs that
 # need more should add a narrower job-level permissions block rather than widening this default.
@@ -15,6 +18,8 @@ permissions:
 jobs:
   pre-commit:
     name: Pre-commit checks
+    # Skip on label-only events so labeling runs only the QEMU job (see pull_request types).
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -27,6 +32,7 @@ jobs:
 
   lint:
     name: Static analysis
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -43,6 +49,7 @@ jobs:
 
   build:
     name: Build
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -57,6 +64,7 @@ jobs:
 
   test:
     name: Unit tests (${{ matrix.alloc_mode }})
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -82,6 +90,7 @@ jobs:
 
   conformance:
     name: opus_compare conformance
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -113,8 +122,123 @@ jobs:
       - name: Run conformance tests
         run: ctest --test-dir build -L conformance --output-on-failure
 
+  # Decide whether the on-target build changed. The QEMU run only adds value for Xtensa codegen (the
+  # patches/ asm and fixed-point paths); the src/ wrapper is already covered on host, so wrapper-only
+  # changes skip it. A job skipped via `if:` reports "skipped", which branch protection treats as passing.
+  changes:
+    name: Detect on-target changes
+    runs-on: ubuntu-latest
+    outputs:
+      target: ${{ steps.filter.outputs.target }}
+    steps:
+      # Full history so the diff base (PR base or previous push tip) is reachable.
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes to on-target build inputs
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # Run QEMU only when the on-target image could change. A lib/opus submodule bump appears as
+          # a change to the gitlink path. The src/ and include/ wrapper is omitted on purpose; host
+          # jobs already cover it. Fail safe: run QEMU if the base commit is unreachable (force-push,
+          # first push, shallow clone).
+          if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            echo "Base ${BASE_SHA} unreachable; running QEMU job to be safe."
+            echo "target=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "${BASE_SHA}...HEAD")"
+          echo "Changed files:"
+          echo "${changed}"
+          if echo "${changed}" | grep -qE '^(lib/opus$|patches/|cmake/staging\.cmake$|tests/qemu/|\.github/workflows/ci\.yml$)'; then
+            echo "target=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "target=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  cross-qemu:
+    name: Cross (Xtensa QEMU conformance, ${{ matrix.variant }})
+    needs: changes
+    # Skip on wrapper-only changes. Add the `ci-run-qemu` label to force a run.
+    if: >
+      needs.changes.outputs.target == 'true' ||
+      contains(github.event.pull_request.labels.*.name, 'ci-run-qemu')
+    runs-on: ubuntu-latest
+    # esp-idf version matches the PlatformIO framework (esp-idf v5.4.x) so the
+    # xtensa-gcc codegen is the same as the local run. Xtensa emulation is
+    # native-speed on the amd64 runner.
+    container: espressif/idf:v5.4.1
+    # Float is the ESP32-S3 default; fixed layers sdkconfig.fixed.defaults to
+    # exercise the fixed-point decode path and fixed_lx7.h. Separate runners so
+    # the two QEMU runs go in parallel.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: float
+            sdkconfig_defaults: sdkconfig.defaults
+          - variant: fixed
+            sdkconfig_defaults: sdkconfig.defaults;sdkconfig.fixed.defaults
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: false
+
+      - name: Initialize component submodules
+        run: |
+          git config --global --add safe.directory '*'
+          git submodule update --init --depth 1 lib/opus lib/micro-ogg-demuxer
+
+      # Same static-vector cache as the host conformance job. The vectors must be
+      # present before the firmware is built: embed_vectors.py bakes them into the
+      # app image at configure time.
+      - name: Cache test vectors
+        id: cache-vectors
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: tests/vectors
+          key: opus-testvectors-${{ hashFiles('tests/fetch_vectors.sh') }}
+
+      - name: Download test vectors
+        if: steps.cache-vectors.outputs.cache-hit != 'true'
+        run: tests/fetch_vectors.sh
+
+      - name: Install QEMU (xtensa)
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          python "$IDF_PATH/tools/idf_tools.py" install qemu-xtensa
+
+      - name: Build conformance firmware (idf.py, esp32s3)
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py -C tests/qemu \
+            -DSDKCONFIG_DEFAULTS="${{ matrix.sdkconfig_defaults }}" \
+            set-target esp32s3 build
+
+      - name: Decode vectors under QEMU and compare on host
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          QEMU_XTENSA="$(command -v qemu-system-xtensa)"
+          [ -n "$QEMU_XTENSA" ] || { echo "qemu-system-xtensa not found on PATH after install"; exit 1; }
+          export QEMU_XTENSA
+          cc -O2 -o /tmp/opus_compare lib/opus/src/opus_compare.c -lm
+          tests/qemu/run-image.sh \
+            tests/qemu/build/bootloader/bootloader.bin \
+            tests/qemu/build/partition_table/partition-table.bin \
+            tests/qemu/build/qemu_opus_test.bin \
+            /tmp/qemu.log \
+            --timeout 900
+          tests/qemu/compare.sh /tmp/qemu.log /tmp/opus_compare tests/vectors /tmp
+
   platformio:
     name: PlatformIO Build
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     strategy:
       matrix:
