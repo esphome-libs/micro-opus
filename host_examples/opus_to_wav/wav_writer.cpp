@@ -95,8 +95,15 @@ void WavWriter::update_header() {
         return;
     }
 
-    uint32_t data_size =
-        static_cast<uint32_t>(samples_written_ * num_channels_ * (bits_per_sample_ / 8));
+    // WAV's RIFF chunk sizes are 32-bit, so the format cannot represent payloads >4 GiB. Compute in
+    // 64-bit and clamp on overflow so the header is wrong-but-bounded with a warning, rather than
+    // silently wrapping to a garbage size.
+    uint64_t data_size_full = samples_written_ * num_channels_ * (bits_per_sample_ / 8);
+    if (data_size_full + WAV_HEADER_SIZE > UINT32_MAX) {
+        fprintf(stderr, "warning: output exceeds WAV's 4 GiB limit; header sizes clamped\n");
+        data_size_full = UINT32_MAX - WAV_HEADER_SIZE;
+    }
+    uint32_t data_size = static_cast<uint32_t>(data_size_full);
     uint32_t file_size = data_size + WAV_HEADER_SIZE;
 
     // Update RIFF chunk size
