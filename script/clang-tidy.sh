@@ -32,8 +32,10 @@ if [ -z "$CLANG_TIDY" ]; then
     done
 fi
 
-if [ -z "$CLANG_TIDY" ]; then
-    echo "Error: clang-tidy not found"
+# Validate the resolved binary up front: catches both an empty result and a bogus pre-set
+# $CLANG_TIDY, instead of failing later with a bare "command not found".
+if ! command -v "$CLANG_TIDY" &> /dev/null; then
+    echo "Error: clang-tidy not found or not executable: '${CLANG_TIDY:-unset}'"
     exit 1
 fi
 
