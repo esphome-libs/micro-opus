@@ -85,7 +85,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ccache
 
       - name: Cache ccache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: ${{ github.workspace }}/.ccache
           key: ccache-build-${{ github.sha }}
@@ -125,7 +125,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ccache
 
       - name: Cache ccache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: ${{ github.workspace }}/.ccache
           key: ccache-test-${{ matrix.alloc_mode }}-${{ github.sha }}
@@ -162,7 +162,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ccache
 
       - name: Cache ccache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: ${{ github.workspace }}/.ccache
           key: ccache-conformance-${{ github.sha }}
@@ -172,7 +172,7 @@ jobs:
       # the fetch script means the cache auto-invalidates if the vector URL ever changes.
       - name: Cache test vectors
         id: cache-vectors
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: tests/vectors
           key: opus-testvectors-${{ hashFiles('tests/fetch_vectors.sh') }}
@@ -274,7 +274,7 @@ jobs:
       # app image at configure time.
       - name: Cache test vectors
         id: cache-vectors
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: tests/vectors
           key: opus-testvectors-${{ hashFiles('tests/fetch_vectors.sh') }}
@@ -334,7 +334,7 @@ jobs:
           python-version: '3.12'
 
       - name: Cache PlatformIO
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: |
             ~/.platformio
