@@ -36,24 +36,17 @@
 #include <stddef.h>
 
 #ifdef ESP_PLATFORM
+#include "custom_support.h" /* For opus_alloc_scratch() */
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "sdkconfig.h"
-/* Use configured memory preference for pseudostack allocation */
-#if defined(CONFIG_OPUS_PSEUDOSTACK_PREFER_PSRAM)
-#define OPUS_ALLOC_SCRATCH(size) \
-    heap_caps_malloc_prefer(size, 2, MALLOC_CAP_SPIRAM, MALLOC_CAP_INTERNAL)
-#elif defined(CONFIG_OPUS_PSEUDOSTACK_PREFER_INTERNAL)
-#define OPUS_ALLOC_SCRATCH(size) \
-    heap_caps_malloc_prefer(size, 2, MALLOC_CAP_INTERNAL, MALLOC_CAP_SPIRAM)
-#elif defined(CONFIG_OPUS_PSEUDOSTACK_PSRAM_ONLY)
-#define OPUS_ALLOC_SCRATCH(size) heap_caps_malloc(size, MALLOC_CAP_SPIRAM)
-#elif defined(CONFIG_OPUS_PSEUDOSTACK_INTERNAL_ONLY)
-#define OPUS_ALLOC_SCRATCH(size) heap_caps_malloc(size, MALLOC_CAP_INTERNAL)
-#else
-#define OPUS_ALLOC_SCRATCH(size) \
-    heap_caps_malloc_prefer(size, 2, MALLOC_CAP_SPIRAM, MALLOC_CAP_INTERNAL)
-#endif
+/* Delegate to opus_alloc_scratch() in custom_support.h so the Kconfig->caps
+ * mapping lives in exactly one place. In particular that mapping ORs in
+ * MALLOC_CAP_8BIT on every path: without it the internal fallback can be
+ * satisfied from the IRAM heap (INTERNAL|32BIT|EXEC, no 8BIT) once DRAM is
+ * tight, and the first byte/halfword store into the pseudostack would then
+ * raise a LoadStoreError. */
+#define OPUS_ALLOC_SCRATCH(size) opus_alloc_scratch(size)
 #define OPUS_FREE(ptr) heap_caps_free(ptr)
 #define LOG_D(tag, fmt, ...) ESP_LOGD(tag, fmt, ##__VA_ARGS__)
 #define LOG_E(tag, fmt, ...) ESP_LOGE(tag, fmt, ##__VA_ARGS__)
