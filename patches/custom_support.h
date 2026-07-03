@@ -36,6 +36,7 @@
 #ifdef ESP_PLATFORM
 /* ESP-IDF build: Use PSRAM-aware allocation */
 #include "esp_heap_caps.h"
+#include "sdkconfig.h" /* CONFIG_OPUS_* macros used in the allocators below */
 
 /* Override opus_alloc to use configurable memory allocation for Opus state/tables */
 #define OVERRIDE_OPUS_ALLOC
