@@ -63,9 +63,7 @@ function(opus_configure_esp_idf COMPONENT_LIB COMPONENT_DIR OPUS_STAGED_DIR)
     # Configure Xtensa optimizations (controlled via Kconfig)
     if(CONFIG_OPUS_ENABLE_XTENSA_OPTIMIZATIONS)
         target_compile_definitions(${COMPONENT_LIB} PRIVATE OPUS_XTENSA_LX7)
-        target_sources(${COMPONENT_LIB} PRIVATE
-            "${OPUS_STAGED_DIR}/celt/xtensa/mathops_lx7.c"
-        )
+        target_sources(${COMPONENT_LIB} PRIVATE ${XTENSA_LX7_SOURCES})
         message(STATUS "Opus: Xtensa optimizations enabled")
     endif()
 
@@ -128,36 +126,7 @@ function(_opus_configure_float_mode TARGET IDF_TARGET OPUS_STAGED_DIR)
     # Floating-point build (user is trusted to enable only on platforms with FPU)
     if(CONFIG_OPUS_FLOATING_POINT)
         # Add float sources from staged directory
-        target_sources(${TARGET} PRIVATE
-            "${OPUS_STAGED_DIR}/silk/float/apply_sine_window_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/corrMatrix_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/encode_frame_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/find_LPC_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/find_LTP_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/find_pitch_lags_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/find_pred_coefs_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/LPC_analysis_filter_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/LTP_analysis_filter_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/LTP_scale_ctrl_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/noise_shape_analysis_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/process_gains_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/regularize_correlations_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/residual_energy_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/warped_autocorrelation_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/wrappers_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/autocorrelation_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/burg_modified_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/bwexpander_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/energy_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/inner_product_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/k2a_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/LPC_inv_pred_gain_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/pitch_analysis_core_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/scale_copy_vector_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/scale_vector_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/schur_FLP.c"
-            "${OPUS_STAGED_DIR}/silk/float/sort_FLP.c"
-        )
+        target_sources(${TARGET} PRIVATE ${SILK_FLOAT_SOURCES})
         target_compile_definitions(${TARGET} PRIVATE
             OPUS_ENABLE_FLOAT_API
             FLOATING_POINT
