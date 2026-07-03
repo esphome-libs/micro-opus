@@ -68,6 +68,7 @@
 
 /* GLOBAL_STACK_SIZE is defined in arch.h (included via stack_alloc.h) */
 #include "arch.h"
+#include "custom_support.h" /* For CELT_FATAL()/celt_fatal() */
 
 static const char* TAG = "opus_tls";
 
@@ -129,6 +130,15 @@ void register_pseudostack_for_cleanup(char* buffer) {
 /* Allocate pseudostack and register for cleanup - called from ALLOC_STACK macro */
 char* _opus_alloc_and_register_pseudostack(void) {
     scratch_ptr = (char*)OPUS_ALLOC_SCRATCH(GLOBAL_STACK_SIZE);
+    if (scratch_ptr == NULL) {
+        /* Out of memory allocating the per-thread pseudostack. Abort with a clear
+         * message rather than returning NULL: the PUSH() overflow guard degrades to
+         * scratch_ptr + GLOBAL_STACK_SIZE - stack == GLOBAL_STACK_SIZE when the base
+         * is NULL, so every sub-GLOBAL_STACK_SIZE allocation would pass the check and
+         * Opus would write through a near-NULL pointer. This runs once per thread on
+         * first decode, so it adds no hot-path cost. */
+        CELT_FATAL("pseudostack allocation failed");
+    }
     register_pseudostack_for_cleanup(scratch_ptr);
     return scratch_ptr;
 }
