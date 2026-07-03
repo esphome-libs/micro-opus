@@ -77,14 +77,21 @@ cmake -DENABLE_SANITIZERS=ON .. && make
 Tests live in the repo-root `tests/` directory (CTest). See `tests/README.md` for details.
 
 ```bash
-# Run the host test suite with sanitizers to catch memory issues
-cmake -B tests/build -DENABLE_SANITIZERS=ON tests
+# Optimized build: runs the whole suite, conformance included
+cmake -B tests/build tests
 cmake --build tests/build
 ctest --test-dir tests/build --output-on-failure
 
 # opus_compare conformance against the official RFC vectors (download once, then it runs)
 tests/fetch_vectors.sh
 ctest --test-dir tests/build -L conformance --output-on-failure
+
+# Memory-safety pass on the unit tests only. Sanitizer builds are unoptimized, so the conformance
+# vectors crawl; the decoder is already exercised here, so keep conformance in the optimized build
+# above. This mirrors CI, which runs the two in separate jobs.
+cmake -B tests/build-asan -DENABLE_SANITIZERS=ON tests
+cmake --build tests/build-asan
+ctest --test-dir tests/build-asan -L unit --output-on-failure
 
 # ESP32 benchmark
 cd examples/decode_benchmark

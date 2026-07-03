@@ -15,6 +15,8 @@ compile. It is a standalone ESP-IDF firmware project, not a CTest target; see
 
 ## Running
 
+The default build is optimized (`Release`) and runs the whole suite, conformance included:
+
 ```bash
 # From the repo root
 cmake -B tests/build tests
@@ -22,15 +24,19 @@ cmake --build tests/build
 ctest --test-dir tests/build --output-on-failure
 ```
 
-Run with sanitizers (recommended during development; CI uses this):
+For a memory-safety pass, build the **unit tests** with sanitizers in a separate directory and run
+only those. Sanitizer builds are unoptimized on purpose (so ASan/UBSan see un-elided code), which
+makes the conformance vectors very slow. The decoder is already exercised under ASan by the unit
+tests, so keep conformance in the optimized build above. This mirrors CI, which runs the two in
+separate jobs:
 
 ```bash
-cmake -B tests/build -DENABLE_SANITIZERS=ON tests
-cmake --build tests/build
-ctest --test-dir tests/build --output-on-failure
+cmake -B tests/build-asan -DENABLE_SANITIZERS=ON tests
+cmake --build tests/build-asan
+ctest --test-dir tests/build-asan -L unit --output-on-failure
 ```
 
-Filter by label:
+Filter by label (against the optimized build):
 
 ```bash
 ctest --test-dir tests/build -L unit          # fast wrapper/parser tests
