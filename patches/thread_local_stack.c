@@ -120,9 +120,11 @@ void register_pseudostack_for_cleanup(char* buffer) {
     }
 }
 
-/* Allocate pseudostack and register for cleanup - called from ALLOC_STACK macro */
-char* _opus_alloc_and_register_pseudostack(void) {
-    scratch_ptr = (char*)OPUS_ALLOC_SCRATCH(GLOBAL_STACK_SIZE);
+/* Allocate pseudostack and register for cleanup - called from ALLOC_STACK macro.
+ * ALLOC_STACK passes the size so the buffer matches what PUSH consumes (see the
+ * ENABLE_VALGRIND redzone doubling in stack_alloc.h). */
+char* _opus_alloc_and_register_pseudostack(size_t size) {
+    scratch_ptr = (char*)OPUS_ALLOC_SCRATCH(size);
     if (scratch_ptr == NULL) {
         /* Out of memory allocating the per-thread pseudostack. Abort with a clear
          * message rather than returning NULL: the PUSH() overflow guard degrades to
