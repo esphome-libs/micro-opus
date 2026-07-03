@@ -126,12 +126,13 @@ void register_pseudostack_for_cleanup(char* buffer) {
 char* _opus_alloc_and_register_pseudostack(size_t size) {
     scratch_ptr = (char*)OPUS_ALLOC_SCRATCH(size);
     if (scratch_ptr == NULL) {
-        /* Out of memory allocating the per-thread pseudostack. Abort with a clear
-         * message rather than returning NULL: the PUSH() overflow guard degrades to
-         * scratch_ptr + GLOBAL_STACK_SIZE - stack == GLOBAL_STACK_SIZE when the base
-         * is NULL, so every sub-GLOBAL_STACK_SIZE allocation would pass the check and
-         * Opus would write through a near-NULL pointer. This runs once per thread on
-         * first decode, so it adds no hot-path cost. */
+        /* Out of memory allocating the per-thread pseudostack. Abort instead of
+         * returning NULL: a NULL base leaves nothing to catch the overrun. Without
+         * ENABLE_HARDENING, PUSH has no bounds check and Opus writes through NULL on
+         * the first allocation; with it, the check degrades to size <= GLOBAL_STACK_SIZE
+         * at a NULL base (scratch_ptr + GLOBAL_STACK_SIZE - stack == GLOBAL_STACK_SIZE)
+         * and lets every sub-stack-size allocation through anyway. Runs once per thread
+         * on first decode, so it costs nothing on the hot path. */
         CELT_FATAL("pseudostack allocation failed");
     }
     register_pseudostack_for_cleanup(scratch_ptr);
