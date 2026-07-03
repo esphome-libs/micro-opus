@@ -90,7 +90,6 @@ if(ESP_IDF_BUILD)
             "${OPUS_STAGED_DIR}/silk/float"
             "${OPUS_STAGED_DIR}/silk/fixed"
             "."
-        PRIV_REQUIRES esp_timer     # Needed for timing profilers
     )
 
     # Apply ESP-IDF configuration
