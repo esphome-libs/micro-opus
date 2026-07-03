@@ -89,10 +89,12 @@ function(opus_create_staging_directory SOURCE_DIR STAGED_DIR APPLY_XTENSA)
     # Check if staging is needed (source newer than staged, or staged doesn't exist)
     set(STAGING_MARKER "${STAGED_DIR}/.staging_complete")
 
-    # Fingerprint the submodule. Prefer the resolved commit over opus.h's mtime:
-    # the mtime misses submodule bumps that don't touch opus.h (e.g. celt/* only)
-    # and checkouts that leave opus.h byte-identical. Fall back to the mtime when
-    # git is unavailable or the source isn't a checkout.
+    # Fingerprint the submodule with both the resolved commit and opus.h's mtime.
+    # The commit catches submodule bumps that don't touch opus.h (e.g. celt/* only)
+    # and checkouts that leave opus.h byte-identical, which the mtime alone misses;
+    # the mtime catches an in-place edit to opus.h in a dirty working tree, which
+    # the commit alone misses. The commit is omitted when git is unavailable or
+    # the source isn't a checkout (e.g. a source tarball), leaving just the mtime.
     file(TIMESTAMP "${SOURCE_DIR}/include/opus.h" SOURCE_TIMESTAMP "%Y%m%d%H%M%S" UTC)
     set(OPUS_SUBMODULE_ID "${SOURCE_TIMESTAMP}")
     if(GIT_EXECUTABLE)
@@ -103,7 +105,7 @@ function(opus_create_staging_directory SOURCE_DIR STAGED_DIR APPLY_XTENSA)
             ERROR_QUIET
             RESULT_VARIABLE _opus_sha_rc)
         if(_opus_sha_rc EQUAL 0 AND _opus_sha)
-            set(OPUS_SUBMODULE_ID "${_opus_sha}")
+            set(OPUS_SUBMODULE_ID "${_opus_sha}_srcmtime=${SOURCE_TIMESTAMP}")
         endif()
     endif()
 
