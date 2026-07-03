@@ -11,7 +11,6 @@ patches/                  # ESP32-specific patches applied at build time
   diffs/                  # .patch files applied to staged opus copy
   celt/xtensa/           # Xtensa assembly optimizations
   silk/xtensa/           # SILK Xtensa optimizations
-  stack_alloc.h          # Thread-local pseudostack implementation
   custom_support.h       # PSRAM-aware memory allocation
 cmake/                   # Build system modules
   staging.cmake          # Copies opus to build/opus-staged/ and applies patches

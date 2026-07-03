@@ -36,6 +36,7 @@
 #ifdef ESP_PLATFORM
 /* ESP-IDF build: Use PSRAM-aware allocation */
 #include "esp_heap_caps.h"
+#include "sdkconfig.h" /* CONFIG_OPUS_* macros used in the allocators below */
 
 /* Override opus_alloc to use configurable memory allocation for Opus state/tables */
 #define OVERRIDE_OPUS_ALLOC
@@ -102,10 +103,16 @@ static inline void* opus_alloc_scratch(size_t size) {
 /* Host builds use the default Opus implementations (malloc/free) from os_support.h */
 
 /* Function called on pseudostack overflow - required for pseudostack modes.
- * Called by the PUSH() macro when allocation exceeds GLOBAL_STACK_SIZE. */
+ * Called by the PUSH() macro when allocation exceeds GLOBAL_STACK_SIZE.
+ *
+ * Only provide our own celt_fatal when upstream does not. When a consumer defines
+ * ENABLE_ASSERTIONS or ENABLE_HARDENING, arch.h declares (and defines under CELT_C)
+ * celt_fatal itself; defining our static inline here as well would collide. */
+#if !defined(ENABLE_ASSERTIONS) && !defined(ENABLE_HARDENING)
 static inline void celt_fatal(const char* str, const char* file, int line) {
     printf("FATAL ERROR: %s at %s:%d\n", str, file, line);
     abort();
 }
+#endif
 
 #endif /* CUSTOM_SUPPORT_H */

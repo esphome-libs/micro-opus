@@ -44,10 +44,12 @@
  */
 void register_pseudostack_for_cleanup(char* buffer);
 
-/* Allocate pseudostack and register for cleanup.
- * Called from ALLOC_STACK macro on first use in each thread.
- * Returns the allocated scratch_ptr.
+/* Allocate a pseudostack of 'size' bytes and register it for cleanup.
+ * Called from ALLOC_STACK macro on first use in each thread. ALLOC_STACK owns
+ * the sizing so the buffer stays in step with what PUSH consumes: GLOBAL_STACK_SIZE
+ * normally, GLOBAL_STACK_SIZE*2 under ENABLE_VALGRIND where PUSH double-sizes for
+ * redzones. Returns the allocated scratch_ptr.
  */
-char* _opus_alloc_and_register_pseudostack(void);
+char* _opus_alloc_and_register_pseudostack(size_t size);
 
 #endif /* THREAD_LOCAL_STACK_H */
