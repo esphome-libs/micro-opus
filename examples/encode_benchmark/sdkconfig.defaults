@@ -25,10 +25,5 @@ CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y
 # Opus configuration - use threadsafe pseudostack
 CONFIG_OPUS_THREADSAFE_PSEUDOSTACK=y
 
-# Disable internal timing instrumentation (we do our own timing)
-CONFIG_OPUS_ENABLE_CELT_TIMING=n
-CONFIG_OPUS_ENABLE_PVQ_TIMING=n
-CONFIG_OPUS_ENABLE_QUANT_BANDS_TIMING=n
-
 # Use fixed-point (faster than floating-point for encoding on ESP32-S3)
 CONFIG_OPUS_FLOATING_POINT=n

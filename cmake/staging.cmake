@@ -78,7 +78,7 @@ message(STATUS "Opus: Using patch command: ${PATCH_EXECUTABLE}")
 # This is called once during CMake configure. Re-staging is triggered when:
 # - The source submodule commit changes (git rev-parse, mtime fallback)
 # - Any patch or Xtensa addition file changes (content hash)
-# - Build configuration changes (Xtensa, timing options)
+# - Build configuration changes (Xtensa options)
 #
 # Arguments:
 #   SOURCE_DIR   - Path to the original opus submodule (lib/opus)
@@ -141,9 +141,6 @@ function(opus_create_staging_directory SOURCE_DIR STAGED_DIR APPLY_XTENSA)
     set(CONFIG_STRING "${CONFIG_STRING}_patches=${_patch_fingerprint}")
     set(CONFIG_STRING "${CONFIG_STRING}_xtensa=${APPLY_XTENSA}")
     set(CONFIG_STRING "${CONFIG_STRING}_xtensa_kconfig=${CONFIG_OPUS_ENABLE_XTENSA_OPTIMIZATIONS}")
-    set(CONFIG_STRING "${CONFIG_STRING}_celt_timing=${CONFIG_OPUS_ENABLE_CELT_TIMING}")
-    set(CONFIG_STRING "${CONFIG_STRING}_pvq_timing=${CONFIG_OPUS_ENABLE_PVQ_TIMING}")
-    set(CONFIG_STRING "${CONFIG_STRING}_quant_timing=${CONFIG_OPUS_ENABLE_QUANT_BANDS_TIMING}")
 
     # Check if we need to re-stage
     set(NEED_STAGING TRUE)
@@ -281,41 +278,6 @@ function(opus_apply_xtensa_patches STAGED_DIR)
 endfunction()
 
 # ==============================================================================
-# opus_apply_timing_patches
-# ==============================================================================
-# Applies timing instrumentation patches to the staged directory.
-# These patches add timing code to existing functions.
-#
-# Note: PVQ_TIMING and QUANT_BANDS_TIMING are mutually exclusive as they both
-# modify vq.c. QUANT_BANDS_TIMING also modifies bands.c.
-#
-# Arguments:
-#   STAGED_DIR         - Path to the staged opus directory
-#   CELT_TIMING        - TRUE to enable CELT decoder timing
-#   PVQ_TIMING         - TRUE to enable PVQ timing
-#   QUANT_BANDS_TIMING - TRUE to enable quant_all_bands timing
-# ==============================================================================
-function(opus_apply_timing_patches STAGED_DIR CELT_TIMING PVQ_TIMING QUANT_BANDS_TIMING)
-    # CELT decoder timing - patches celt_decoder.c
-    if(CELT_TIMING)
-        opus_apply_patch("${STAGED_DIR}" "celt_timing.patch")
-    endif()
-
-    # PVQ timing - patches vq.c
-    if(PVQ_TIMING)
-        opus_apply_patch("${STAGED_DIR}" "pvq_timing.patch")
-    # Quant bands timing - patches vq.c (mutually exclusive with PVQ)
-    elseif(QUANT_BANDS_TIMING)
-        opus_apply_patch("${STAGED_DIR}" "vq_quant_bands_timing.patch")
-    endif()
-
-    # Quant bands timing - also patches bands.c
-    if(QUANT_BANDS_TIMING)
-        opus_apply_patch("${STAGED_DIR}" "bands_timing.patch")
-    endif()
-endfunction()
-
-# ==============================================================================
 # opus_setup_staged_build
 # ==============================================================================
 # Main entry point: creates staging directory and applies appropriate patches.
@@ -356,16 +318,6 @@ function(opus_setup_staged_build COMPONENT_DIR APPLY_XTENSA)
     # Apply Xtensa patches if requested
     if(APPLY_XTENSA)
         opus_apply_xtensa_patches("${STAGED_DIR}")
-    endif()
-
-    # Apply timing instrumentation patches if enabled (ESP-IDF only, uses CONFIG_ variables)
-    if(CONFIG_OPUS_ENABLE_CELT_TIMING OR CONFIG_OPUS_ENABLE_PVQ_TIMING OR CONFIG_OPUS_ENABLE_QUANT_BANDS_TIMING)
-        opus_apply_timing_patches(
-            "${STAGED_DIR}"
-            "${CONFIG_OPUS_ENABLE_CELT_TIMING}"
-            "${CONFIG_OPUS_ENABLE_PVQ_TIMING}"
-            "${CONFIG_OPUS_ENABLE_QUANT_BANDS_TIMING}"
-        )
     endif()
 
     # Export the staged directory path

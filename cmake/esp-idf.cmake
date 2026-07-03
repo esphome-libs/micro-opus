@@ -39,7 +39,7 @@ function(opus_configure_esp_idf COMPONENT_LIB COMPONENT_DIR OPUS_STAGED_DIR)
     target_link_libraries(${COMPONENT_LIB} PUBLIC micro_ogg_demuxer)
 
     # Add patches directory to include path for custom headers
-    # (custom_support.h, thread_local_stack.h, timing headers)
+    # (custom_support.h, thread_local_stack.h)
     target_include_directories(${COMPONENT_LIB} BEFORE PRIVATE
         "${COMPONENT_DIR}/patches"
         "${COMPONENT_DIR}/src"
@@ -50,9 +50,6 @@ function(opus_configure_esp_idf COMPONENT_LIB COMPONENT_DIR OPUS_STAGED_DIR)
 
     # Configure memory allocation mode
     _opus_configure_allocation_mode(${COMPONENT_LIB})
-
-    # Configure timing instrumentation if enabled
-    _opus_configure_timing(${COMPONENT_LIB})
 
     # Configure fixed-point vs floating-point
     _opus_configure_float_mode(${COMPONENT_LIB} ${target} ${OPUS_STAGED_DIR})
@@ -100,24 +97,6 @@ function(_opus_configure_allocation_mode TARGET)
         message(STATUS "Opus: Using USE_ALLOCA mode (stack allocation)")
     else()
         message(FATAL_ERROR "No Opus memory allocation mode selected!")
-    endif()
-endfunction()
-
-# Configure timing instrumentation
-function(_opus_configure_timing TARGET)
-    if(CONFIG_OPUS_ENABLE_CELT_TIMING)
-        target_compile_definitions(${TARGET} PRIVATE CONFIG_OPUS_ENABLE_CELT_TIMING)
-        message(STATUS "Opus: CELT timing instrumentation enabled")
-    endif()
-
-    if(CONFIG_OPUS_ENABLE_PVQ_TIMING)
-        target_compile_definitions(${TARGET} PRIVATE CONFIG_OPUS_ENABLE_PVQ_TIMING)
-        message(STATUS "Opus: PVQ timing instrumentation enabled")
-    endif()
-
-    if(CONFIG_OPUS_ENABLE_QUANT_BANDS_TIMING)
-        target_compile_definitions(${TARGET} PRIVATE CONFIG_OPUS_ENABLE_QUANT_BANDS_TIMING)
-        message(STATUS "Opus: quant_all_bands timing instrumentation enabled")
     endif()
 endfunction()
 
