@@ -76,7 +76,8 @@ message(STATUS "Opus: Using patch command: ${PATCH_EXECUTABLE}")
 # ==============================================================================
 # Creates a staged copy of the opus submodule in the build directory.
 # This is called once during CMake configure. Re-staging is triggered when:
-# - The source submodule changes (timestamp check)
+# - The source submodule commit changes (git rev-parse, mtime fallback)
+# - Any patch or Xtensa addition file changes (content hash)
 # - Build configuration changes (Xtensa, timing options)
 #
 # Arguments:
@@ -88,12 +89,54 @@ function(opus_create_staging_directory SOURCE_DIR STAGED_DIR APPLY_XTENSA)
     # Check if staging is needed (source newer than staged, or staged doesn't exist)
     set(STAGING_MARKER "${STAGED_DIR}/.staging_complete")
 
-    # Get source directory modification time (use a key file)
+    # Fingerprint the submodule. Prefer the resolved commit over opus.h's mtime:
+    # the mtime misses submodule bumps that don't touch opus.h (e.g. celt/* only)
+    # and checkouts that leave opus.h byte-identical. Fall back to the mtime when
+    # git is unavailable or the source isn't a checkout.
     file(TIMESTAMP "${SOURCE_DIR}/include/opus.h" SOURCE_TIMESTAMP "%Y%m%d%H%M%S" UTC)
+    set(OPUS_SUBMODULE_ID "${SOURCE_TIMESTAMP}")
+    if(GIT_EXECUTABLE)
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" -C "${SOURCE_DIR}" rev-parse HEAD
+            OUTPUT_VARIABLE _opus_sha
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+            RESULT_VARIABLE _opus_sha_rc)
+        if(_opus_sha_rc EQUAL 0 AND _opus_sha)
+            set(OPUS_SUBMODULE_ID "${_opus_sha}")
+        endif()
+    endif()
+
+    # Collect every file baked into the staged tree: the patch diffs plus the
+    # Xtensa addition sources.
+    file(GLOB _staging_inputs "${OPUS_DIFFS_DIR}/*.patch")
+    foreach(_add IN LISTS OPUS_XTENSA_ADDITIONS)
+        list(APPEND _staging_inputs "${OPUS_PATCHES_DIR}/${_add}")
+    endforeach()
+
+    # Fingerprint their contents so editing any one forces a re-stage. Without
+    # this, an edited .patch reuses the stale staged tree: the config hash below
+    # would ignore patch contents, and the per-patch markers in the staged dir
+    # block re-application (see opus_apply_patch).
+    set(_patch_fingerprint "")
+    foreach(_pf IN LISTS _staging_inputs)
+        if(EXISTS "${_pf}")
+            file(MD5 "${_pf}" _pf_hash)
+            string(APPEND _patch_fingerprint "${_pf_hash}")
+        endif()
+    endforeach()
+    string(MD5 _patch_fingerprint "${_patch_fingerprint}")
+
+    # Make CMake re-run configure (recomputing the fingerprint above) when any of
+    # these change. Patch/addition files are not configure dependencies by
+    # default, so an edit alone would not otherwise re-trigger staging during an
+    # incremental `idf.py build`.
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_staging_inputs})
 
     # Build a configuration hash to detect option changes
     # Include all options that affect which patches/files are applied
-    set(CONFIG_STRING "${SOURCE_TIMESTAMP}")
+    set(CONFIG_STRING "${OPUS_SUBMODULE_ID}")
+    set(CONFIG_STRING "${CONFIG_STRING}_patches=${_patch_fingerprint}")
     set(CONFIG_STRING "${CONFIG_STRING}_xtensa=${APPLY_XTENSA}")
     set(CONFIG_STRING "${CONFIG_STRING}_xtensa_kconfig=${CONFIG_OPUS_ENABLE_XTENSA_OPTIMIZATIONS}")
     set(CONFIG_STRING "${CONFIG_STRING}_celt_timing=${CONFIG_OPUS_ENABLE_CELT_TIMING}")
