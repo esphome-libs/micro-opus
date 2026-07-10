@@ -120,7 +120,8 @@ OpusHeaderResult parse_opus_head(const uint8_t* packet, size_t packet_len, OpusH
         // Each mapping value must be a valid stream index (< stream_count + coupled_count)
         // OR 255 which indicates a silent channel
         // Use uint16_t to prevent integer overflow (two uint8_t values can sum to 510)
-        uint16_t total_streams = (uint16_t)head.stream_count + (uint16_t)head.coupled_count;
+        uint16_t total_streams =
+            static_cast<uint16_t>(head.stream_count) + static_cast<uint16_t>(head.coupled_count);
         for (uint8_t i = 0; i < head.channel_count; i++) {
             // Accept values < total_streams OR 255 (silent channel)
             if (head.channel_mapping_table[i] >= total_streams &&

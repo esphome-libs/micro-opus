@@ -81,10 +81,12 @@ if [ "$1" = "--fix" ]; then
     FIX_FLAG="--fix"
 fi
 
+# --warnings-as-errors keeps the exit code non-zero on any finding even if a
+# repo's .clang-tidy ever loses its WarningsAsErrors line; CI relies on this.
 echo "Running clang-tidy on src/ and host_examples/..."
-$CLANG_TIDY -p "$BUILD_DIR" $FIX_FLAG $SOURCES
+$CLANG_TIDY -p "$BUILD_DIR" --warnings-as-errors='*' $FIX_FLAG $SOURCES
 
 if [ -n "$TEST_SOURCES" ]; then
     echo "Running clang-tidy on tests/..."
-    $CLANG_TIDY -p "$TEST_BUILD_DIR" $FIX_FLAG $TEST_SOURCES
+    $CLANG_TIDY -p "$TEST_BUILD_DIR" --warnings-as-errors='*' $FIX_FLAG $TEST_SOURCES
 fi

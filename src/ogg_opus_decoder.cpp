@@ -128,7 +128,7 @@ void OggOpusDecoder::update_page_tracking(bool is_last_on_page) {
 
 OggOpusResult OggOpusDecoder::validate_granule_position(int64_t granule_pos, size_t decoded_samples,
                                                         bool is_eos, bool is_last_on_page) {
-    if (granule_pos > 0 && (uint64_t)granule_pos != INVALID_GRANULE_POSITION) {
+    if (granule_pos > 0 && static_cast<uint64_t>(granule_pos) != INVALID_GRANULE_POSITION) {
         // RFC 7845 Section 4: First audio data page granule position validation
         if (first_audio_page_samples_ == -1 && last_granule_position_ == 0) {
             first_audio_page_samples_ = 0;
@@ -174,8 +174,13 @@ OggOpusResult OggOpusDecoder::create_opus_decoder(uint8_t output_channels) {
         }
 
         if (opus_head_->output_gain != 0) {
-            opus_multistream_decoder_ctl(opus_ms_decoder_,
-                                         OPUS_SET_GAIN((opus_int32)opus_head_->output_gain));
+            // OPUS_SET_GAIN casts C-style inside the vendored libopus macro (opus_defines.h), which
+            // we can't change; silence -Wold-style-cast for just this call.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
+            opus_multistream_decoder_ctl(
+                opus_ms_decoder_, OPUS_SET_GAIN(static_cast<opus_int32>(opus_head_->output_gain)));
+#pragma GCC diagnostic pop
         }
     }
     return OGG_OPUS_OK;
@@ -281,7 +286,7 @@ OggOpusResult OggOpusDecoder::stream_opus_tags(const uint8_t* input, size_t inpu
     // Intermediate continuation pages use -1 (INVALID_GRANULE_POSITION) per RFC 3533.
     if (parse_state.packet.is_last_on_page) {
         int64_t gp = parse_state.packet.granule_position;
-        if (gp != 0 && (uint64_t)gp != INVALID_GRANULE_POSITION) {
+        if (gp != 0 && static_cast<uint64_t>(gp) != INVALID_GRANULE_POSITION) {
             return OGG_OPUS_INPUT_INVALID;
         }
     }
@@ -363,8 +368,8 @@ OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, si
     }
 
     // Calculate required buffer size for this packet
-    int nb_samples =
-        opus_packet_get_nb_samples(packet_data, (opus_int32)packet_len, (opus_int32)sample_rate_);
+    int nb_samples = opus_packet_get_nb_samples(packet_data, static_cast<opus_int32>(packet_len),
+                                                static_cast<opus_int32>(sample_rate_));
 
     if (nb_samples > 0) {
         size_t required_samples = static_cast<size_t>(nb_samples);
@@ -390,14 +395,14 @@ OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, si
         decoded_samples_size = bytes_written / (output_channels_ * sizeof(int16_t));
     } else if (opus_ms_decoder_) {
         size_t max_samples = output_size / (output_channels_ * sizeof(int16_t));
-        int max_frame_size = (int)std::min(max_samples, (size_t)INT_MAX);
+        int max_frame_size = static_cast<int>(std::min(max_samples, static_cast<size_t>(INT_MAX)));
         int decoded_samples_int = opus_multistream_decode(
-            opus_ms_decoder_, packet_data, (opus_int32)packet_len,
+            opus_ms_decoder_, packet_data, static_cast<opus_int32>(packet_len),
             reinterpret_cast<int16_t*>(output), max_frame_size, 0 /* No FEC */);
         if (decoded_samples_int < 0) {
             return OGG_OPUS_DECODE_ERROR;
         }
-        decoded_samples_size = (size_t)decoded_samples_int;
+        decoded_samples_size = static_cast<size_t>(decoded_samples_int);
     } else {
         // Unreachable in STATE_DECODING: create_opus_decoder() always sets one backend.
         return OGG_OPUS_NOT_INITIALIZED;
@@ -417,19 +422,24 @@ OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, si
     // RFC 7845 Section 4: End trimming for gapless playback
     // On the last packet of the EOS page, trim excess samples based on granule position delta
     if (is_last_on_page && is_eos && granule_pos > 0 &&
-        (uint64_t)granule_pos != INVALID_GRANULE_POSITION && prev_page_granule_position_ > 0) {
+        static_cast<uint64_t>(granule_pos) != INVALID_GRANULE_POSITION &&
+        prev_page_granule_position_ > 0) {
         // Calculate expected samples for this entire page based on granule position delta
         // Granule positions are always at 48kHz (RFC 7845)
         int64_t expected_at_48k = granule_pos - prev_page_granule_position_;
 
         if (expected_at_48k >= 0) {
             // Convert to output sample rate
-            size_t expected_samples_on_page =
-                ((uint64_t)expected_at_48k * sample_rate_) / OPUS_SAMPLE_RATE_48K;
+            // Keep in 64-bit: expected_at_48k derives from an untrusted granule position and
+            // can exceed SIZE_MAX on 32-bit targets. Narrowing only the difference below is safe
+            // because it is guarded to be < samples_on_current_page_ (a size_t).
+            uint64_t expected_samples_on_page =
+                (static_cast<uint64_t>(expected_at_48k) * sample_rate_) / OPUS_SAMPLE_RATE_48K;
 
             // If we decoded more samples on this page than expected, trim from this packet
             if (samples_on_current_page_ > expected_samples_on_page) {
-                size_t samples_to_trim = samples_on_current_page_ - expected_samples_on_page;
+                size_t samples_to_trim =
+                    static_cast<size_t>(samples_on_current_page_ - expected_samples_on_page);
 
                 if (samples_to_trim < decoded_samples_size) {
                     decoded_samples_size -= samples_to_trim;
@@ -443,7 +453,7 @@ OggOpusResult OggOpusDecoder::handle_audio_packet(const uint8_t* packet_data, si
 
     // Update page tracking when page ends
     if (is_last_on_page) {
-        if (granule_pos > 0 && (uint64_t)granule_pos != INVALID_GRANULE_POSITION) {
+        if (granule_pos > 0 && static_cast<uint64_t>(granule_pos) != INVALID_GRANULE_POSITION) {
             prev_page_granule_position_ = granule_pos;
         }
         samples_on_current_page_ = 0;
@@ -464,7 +474,8 @@ OggOpusResult OggOpusDecoder::apply_pre_skip(uint8_t* output, size_t decoded_sam
 
         // Convert pre-skip from 48kHz units to current sample rate
         uint64_t pre_skip_at_sample_rate =
-            ((uint64_t)opus_head_->pre_skip * (uint64_t)sample_rate_) / OPUS_SAMPLE_RATE_48K;
+            (static_cast<uint64_t>(opus_head_->pre_skip) * static_cast<uint64_t>(sample_rate_)) /
+            OPUS_SAMPLE_RATE_48K;
 
         if (samples_decoded_total_ + decoded_samples <= pre_skip_at_sample_rate) {
             // Entire frame is within pre-skip range
@@ -474,7 +485,8 @@ OggOpusResult OggOpusDecoder::apply_pre_skip(uint8_t* output, size_t decoded_sam
         }
         if (samples_decoded_total_ < pre_skip_at_sample_rate) {
             // Partial frame needs to be skipped
-            size_t skip_count = pre_skip_at_sample_rate - samples_decoded_total_;
+            size_t skip_count =
+                static_cast<size_t>(pre_skip_at_sample_rate - samples_decoded_total_);
 
             if (skip_count > decoded_samples) {
                 return OGG_OPUS_INPUT_INVALID;
@@ -564,10 +576,14 @@ uint8_t OggOpusDecoder::get_channels() const {
     return output_channels_;
 }
 
+// Constant-returning public accessors, instance methods by API design (mirroring get_channels());
+// callers are downstream consumers, so cppcheck sees them as static-able and uncalled in-repo.
+// cppcheck-suppress[functionStatic,unusedFunction]
 uint8_t OggOpusDecoder::get_bit_depth() const {
     return 16;  // Opus decoder always outputs 16-bit samples
 }
 
+// cppcheck-suppress[functionStatic,unusedFunction]
 uint8_t OggOpusDecoder::get_bytes_per_sample() const {
     return 2;  // sizeof(int16_t)
 }
@@ -577,6 +593,8 @@ uint16_t OggOpusDecoder::get_pre_skip() const {
     return (state_ == STATE_DECODING && opus_head_) ? opus_head_->pre_skip : 0;
 }
 
+// Public API accessor; callers are downstream consumers.
+// cppcheck-suppress unusedFunction
 int16_t OggOpusDecoder::get_output_gain() const {
     // Only return valid output gain after OpusHead has been parsed
     return (state_ == STATE_DECODING && opus_head_) ? opus_head_->output_gain : 0;
@@ -587,6 +605,8 @@ size_t OggOpusDecoder::get_required_output_buffer_size() const {
 }
 
 #ifdef MICRO_OGG_DEMUXER_DEBUG
+// Debug-only introspection hook (gated on MICRO_OGG_DEMUXER_DEBUG).
+// cppcheck-suppress unusedFunction
 void OggOpusDecoder::get_demuxer_debug_state(int& state, bool& assembling, bool& skipping,
                                              size_t& packet_size, size_t& body_consumed,
                                              uint8_t& seg_index, uint8_t& seg_count) const {

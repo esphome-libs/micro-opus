@@ -20,6 +20,19 @@
 #include <cstddef>
 #include <cstdint>
 
+// Marks functions whose return value must not be ignored (the decoder reports
+// errors only through return codes). [[nodiscard]] needs C++17; the linters
+// build at the C++11 host floor, so fall back to the GNU attribute there.
+#ifndef MICRO_OPUS_NODISCARD
+#if defined(__cplusplus) && __cplusplus >= 201703L
+#define MICRO_OPUS_NODISCARD [[nodiscard]]
+#elif defined(__GNUC__)
+#define MICRO_OPUS_NODISCARD __attribute__((warn_unused_result))
+#else
+#define MICRO_OPUS_NODISCARD
+#endif
+#endif
+
 // Forward declaration of the libopus C decoder handle to avoid exposing opus.h.
 struct OpusDecoder;
 
@@ -76,6 +89,8 @@ class PcmFormat {
 public:
     /// @brief Bits per output sample (always 16; microOpus emits 16-bit signed PCM)
     /// @return Output bit depth in bits (always 16)
+    // Public API accessor; callers are downstream consumers.
+    // cppcheck-suppress unusedFunction
     uint32_t bits_per_sample() const {
         return 16;
     }
@@ -256,8 +271,9 @@ public:
     ///       for the exact size this packet needs, grow the buffer, and retry the same call.
     /// @note output_size_bytes and bytes_written are both in bytes, matching the output buffer's
     /// unit.
-    OpusPacketResult decode(const uint8_t* input, size_t input_len, uint8_t* output,
-                            size_t output_size_bytes, size_t& bytes_written);
+    MICRO_OPUS_NODISCARD OpusPacketResult decode(const uint8_t* input, size_t input_len,
+                                                 uint8_t* output, size_t output_size_bytes,
+                                                 size_t& bytes_written);
 
     /// @brief Synthesize concealment audio for a lost packet (packet-loss concealment)
     ///
@@ -276,8 +292,9 @@ public:
     ///                           any error.
     ///
     /// @return OPUS_PACKET_DECODER_SUCCESS, or a negative error code; see OpusPacketResult
-    OpusPacketResult conceal_loss(uint8_t* output, size_t output_size_bytes,
-                                  size_t frame_size_samples, size_t& bytes_written);
+    MICRO_OPUS_NODISCARD OpusPacketResult conceal_loss(uint8_t* output, size_t output_size_bytes,
+                                                       size_t frame_size_samples,
+                                                       size_t& bytes_written);
 
     // ========================================
     // PCM Format

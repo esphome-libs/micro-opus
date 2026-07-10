@@ -20,10 +20,22 @@
 #ifndef OGG_OPUS_DECODER_H
 #define OGG_OPUS_DECODER_H
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+
+// Marks functions whose return value must not be ignored (the decoder reports
+// errors only through return codes). [[nodiscard]] needs C++17; the linters
+// build at the C++11 host floor, so fall back to the GNU attribute there.
+#ifndef MICRO_OPUS_NODISCARD
+#if defined(__cplusplus) && __cplusplus >= 201703L
+#define MICRO_OPUS_NODISCARD [[nodiscard]]
+#elif defined(__GNUC__)
+#define MICRO_OPUS_NODISCARD __attribute__((warn_unused_result))
+#else
+#define MICRO_OPUS_NODISCARD
+#endif
+#endif
 
 // Forward declarations to avoid exposing implementation details
 struct OpusMSDecoder;
@@ -171,8 +183,8 @@ public:
      *       files) or when performance is critical and corruption detection is
      *       not required.
      */
-    OggOpusDecoder(bool enable_crc = false, uint32_t sample_rate = OPUS_DEFAULT_SAMPLE_RATE,
-                   uint8_t channels = 0);
+    explicit OggOpusDecoder(bool enable_crc = false,
+                            uint32_t sample_rate = OPUS_DEFAULT_SAMPLE_RATE, uint8_t channels = 0);
 
     /**
      * @brief Destroy the decoder and free resources
@@ -221,8 +233,9 @@ public:
      * @note Can handle arbitrarily small input chunks (even 1 byte at a time)
      *       thanks to internal header staging buffer.
      */
-    OggOpusResult decode(const uint8_t* input, size_t input_len, uint8_t* output,
-                         size_t output_size, size_t& bytes_consumed, size_t& samples_decoded);
+    MICRO_OPUS_NODISCARD OggOpusResult decode(const uint8_t* input, size_t input_len,
+                                              uint8_t* output, size_t output_size,
+                                              size_t& bytes_consumed, size_t& samples_decoded);
 
     /**
      * @brief Get the sample rate of the decoded audio

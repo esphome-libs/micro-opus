@@ -8,6 +8,9 @@ build/
 .libs/
 .deps/
 
+# Local marker recording which internal conventions version is used for this project.
+.conventions-version
+
 # ESP-IDF specific
 sdkconfig
 sdkconfig.old

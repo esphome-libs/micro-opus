@@ -19,18 +19,19 @@
 #include "micro_opus/ogg_opus_decoder.h"
 #include "wav_writer.h"
 
+#include <cstdint>
 #include <cstring>
 #include <exception>
 #include <fstream>
 #include <iostream>
 #include <vector>
 
-void print_usage(const char* program_name) {
+static void print_usage(const char* program_name) {
     std::cerr << "Usage: " << program_name << " <input.opus> <output.wav>\n";
     std::cerr << "\nConverts an Ogg Opus file to WAV format.\n";
 }
 
-void print_error_description(micro_opus::OggOpusResult result) {
+static void print_error_description(micro_opus::OggOpusResult result) {
     switch (result) {
         case micro_opus::OGG_OPUS_INPUT_INVALID:
             std::cerr << " (OGG_OPUS_INPUT_INVALID - Invalid Ogg/Opus stream)";

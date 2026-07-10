@@ -95,6 +95,26 @@ if(ESP_IDF_BUILD)
     # Apply ESP-IDF configuration
     opus_configure_esp_idf(${COMPONENT_LIB} ${COMPONENT_DIR} ${OPUS_STAGED_DIR})
 
+    # Strict warnings for our own wrapper sources on the ESP-IDF build too - this is the build that
+    # ships to hardware and the only place ESP-only code paths (#ifdef ESP_PLATFORM branches, Xtensa
+    # sources) ever compile, so local warnings are most useful here. Scoped per-source to src/ via the
+    # same helper as the host build; the bundled upstream Opus C (registered in the same component) is
+    # never put through them. -Werror is gated behind ENABLE_WERROR exactly as on host (default off, so
+    # a consumer building the component against an arbitrary future IDF toolchain gets warnings only);
+    # CI's pinned ESP build passes -DENABLE_WERROR=ON, the only place ESP-only wrapper warnings actually
+    # become errors (the host -Werror build never compiles these branches).
+    option(ENABLE_WERROR "Treat warnings as errors" OFF)
+    opus_wrapper_warning_flags(MICRO_OPUS_ESP_WRAPPER_WARNINGS)
+    if(ENABLE_WERROR)
+        list(APPEND MICRO_OPUS_ESP_WRAPPER_WARNINGS -Werror)
+        # These sources build at -O2, where GCC's -Wmaybe-uninitialized is false-positive-prone, so
+        # keep it non-fatal (a definite -Wuninitialized still errors), matching the host block and
+        # opus_set_optimization_flags. The ESP toolchain is always GCC, so no compiler guard is needed.
+        list(APPEND MICRO_OPUS_ESP_WRAPPER_WARNINGS -Wno-error=maybe-uninitialized)
+    endif()
+    set_source_files_properties(${OGG_OPUS_SOURCES} PROPERTIES
+        COMPILE_OPTIONS "${MICRO_OPUS_ESP_WRAPPER_WARNINGS}")
+
 # ==============================================================================
 # Host Build
 # ==============================================================================
@@ -148,10 +168,9 @@ else()
     # Strict warnings for our own wrapper sources only. The bundled upstream Opus C is not clean
     # under this set and is never edited here, so it keeps the relaxed flags from
     # opus_set_optimization_flags(); scoping these per-source confines them to src/. ENABLE_WERROR
-    # makes them fatal in CI. Mirrors the warning set used across the micro-* libraries.
-    set(MICRO_OPUS_WRAPPER_WARNINGS
-        -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion -Wdouble-promotion
-        -Wformat=2 -Wimplicit-fallthrough)
+    # makes them fatal in CI. Mirrors the warning set used across the micro-* libraries (shared with
+    # the ESP-IDF build via opus_wrapper_warning_flags()).
+    opus_wrapper_warning_flags(MICRO_OPUS_WRAPPER_WARNINGS)
     if(ENABLE_WERROR)
         list(APPEND MICRO_OPUS_WRAPPER_WARNINGS -Werror)
         # These sources build at -O2 (above), where GCC's -Wmaybe-uninitialized is

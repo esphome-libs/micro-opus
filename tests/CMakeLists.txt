@@ -73,6 +73,26 @@ target_include_directories(test_support INTERFACE
     ${MICRO_OPUS_ROOT}/src
 )
 
+# Strict first-party warnings for our own test sources. Applied only to test code we write, never to
+# the vendored opus_compare.c. Mirrors the wrapper/host-example set; ENABLE_WERROR (declared by the
+# root project added above) makes them fatal in CI.
+function(micro_opus_test_warnings target)
+    target_compile_options(${target} PRIVATE
+        -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion -Wdouble-promotion
+        -Wformat=2 -Wimplicit-fallthrough
+        # Any function not declared in a header must be static, so -Wunused-function can see it go
+        # dead. Clang and GCC spell the C++ variant differently.
+        $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wmissing-prototypes>
+        $<$<CXX_COMPILER_ID:GNU>:-Wmissing-declarations>
+        # Require static_cast/reinterpret_cast over C-style casts (C++ sources only).
+        $<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast>
+        $<$<BOOL:${ENABLE_WERROR}>:-Werror>
+        # GCC's -Wmaybe-uninitialized is false-positive-prone under optimization; keep it non-fatal
+        # under GCC (matching the wrapper sources). Clang lacks the warning and would reject the flag.
+        $<$<AND:$<BOOL:${ENABLE_WERROR}>,$<CXX_COMPILER_ID:GNU>>:-Wno-error=maybe-uninitialized>
+    )
+endfunction()
+
 # ==============================================================================
 # Unit tests - exercise our own wrapper / parsing code
 # ==============================================================================
@@ -80,6 +100,7 @@ target_include_directories(test_support INTERFACE
 function(micro_opus_add_unit_test name)
     add_executable(${name} unit/${name}.cpp)
     target_link_libraries(${name} PRIVATE micro_opus test_support)
+    micro_opus_test_warnings(${name})
     add_test(NAME ${name} COMMAND ${name})
     set_tests_properties(${name} PROPERTIES LABELS unit)
 endfunction()
@@ -104,6 +125,7 @@ if(NOT WIN32)
     # Our test-vector decoder (decodes the .bit framing with OpusPacketDecoder).
     add_executable(decode_vectors conformance/decode_vectors.cpp)
     target_link_libraries(decode_vectors PRIVATE micro_opus)
+    micro_opus_test_warnings(decode_vectors)
 
     # RFC 8251 test-vector conformance. Skips (CTest "Skipped") until the vectors are
     # downloaded into OPUS_VECTOR_DIR via tests/fetch_vectors.sh.
@@ -135,6 +157,7 @@ if(BUILD_MEASURE_TOOLS AND NOT WIN32)
         "uninstrumented library.")
     add_executable(measure_zerocopy tools/measure_zerocopy.cpp)
     target_link_libraries(measure_zerocopy PRIVATE micro_opus)
+    micro_opus_test_warnings(measure_zerocopy)
     target_compile_definitions(measure_zerocopy PRIVATE MICRO_OGG_DEMUXER_DEBUG)
     target_compile_definitions(micro_opus PUBLIC MICRO_OGG_DEMUXER_DEBUG)
     target_compile_definitions(micro_ogg_demuxer PUBLIC MICRO_OGG_DEMUXER_DEBUG)

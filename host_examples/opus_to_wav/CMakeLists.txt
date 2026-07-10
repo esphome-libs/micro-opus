@@ -51,6 +51,12 @@ target_compile_options(opus_to_wav PRIVATE
     -Wdouble-promotion
     -Wformat=2
     -Wimplicit-fallthrough
+    # Any function not declared in a header must be static, so -Wunused-function can see it go dead.
+    # Clang and GCC spell the C++ variant differently.
+    $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wmissing-prototypes>
+    $<$<CXX_COMPILER_ID:GNU>:-Wmissing-declarations>
+    # Require static_cast/reinterpret_cast over C-style casts (C++ sources only).
+    $<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast>
     $<$<BOOL:${ENABLE_WERROR}>:-Werror>
     # GCC's -Wmaybe-uninitialized is false-positive-prone under optimization; keep it non-fatal
     # under GCC (matching the wrapper sources). Clang lacks the warning and would reject the flag.
