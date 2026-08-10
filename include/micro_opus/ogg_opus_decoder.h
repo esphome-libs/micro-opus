@@ -27,8 +27,11 @@
 // Marks functions whose return value must not be ignored (the decoder reports
 // errors only through return codes). [[nodiscard]] needs C++17; the linters
 // build at the C++11 host floor, so fall back to the GNU attribute there.
+// MSVC pins __cplusplus to 199711L unless /Zc:__cplusplus is passed, so the
+// language level comes from _MSVC_LANG wherever that macro is defined.
 #ifndef MICRO_OPUS_NODISCARD
-#if defined(__cplusplus) && __cplusplus >= 201703L
+#if (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L) || \
+    (!defined(_MSVC_LANG) && defined(__cplusplus) && __cplusplus >= 201703L)
 #define MICRO_OPUS_NODISCARD [[nodiscard]]
 #elif defined(__GNUC__)
 #define MICRO_OPUS_NODISCARD __attribute__((warn_unused_result))

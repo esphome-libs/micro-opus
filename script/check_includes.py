@@ -58,7 +58,7 @@ CMAKE_ARGS = []
 # Directories checked in both passes (portable code with guarded ESP branches),
 # only on host (host tools/tests), and only as ESP (ESP-IDF example apps).
 CHECK_BOTH = ["src", "include"]
-CHECK_HOST_ONLY = ["host_examples"]
+CHECK_HOST_ONLY = ["host_examples", "tests"]
 CHECK_ESP_ONLY = ["examples"]
 
 # Skip paths containing any of these segments (build trees, vendored code).
@@ -69,8 +69,18 @@ EXCLUDE_SEGMENTS = {"build", ".pio", "managed_components", "cmake-build"}
 # idf.py build, not by the host compile DB / shared esp_stubs.py. clang-include-
 # cleaner can't compile them on the host (opus.h unresolved, esp_* symbols
 # undeclared), so they're excluded here -- the library's own ESP branches under
-# src/ are still checked via the esp pass.
-EXCLUDE_DIRS = ["examples/decode_benchmark", "examples/encode_benchmark"]
+# src/ are still checked via the esp pass. tests/qemu is the same case: an
+# ESP-IDF firmware app built by PlatformIO, not by the host compile DB.
+# tests/tools is excluded for a different reason -- measure_zerocopy.cpp is an
+# opt-in instrument that #errors unless MICRO_OGG_DEMUXER_DEBUG is defined and
+# calls debug-only APIs absent from a default build, so it cannot be compiled
+# in the configuration this checker analyzes.
+EXCLUDE_DIRS = [
+    "examples/decode_benchmark",
+    "examples/encode_benchmark",
+    "tests/qemu",
+    "tests/tools",
+]
 # Skip files matching any of these basename regexes (generated data headers).
 EXCLUDE_BASENAMES = [r"^test_audio_.*\.h$"]
 
@@ -92,12 +102,17 @@ IGNORE_HEADERS = [
 # compile-db entry (headers, ESP-only sources, tests the build didn't compile)
 # get flags interpolated from the nearest entry, which may lack these roots.
 # Duplicates of roots already in an entry's flags are harmless.
-EXTRA_INCLUDE_DIRS = ["src", "include"]
+# tests/support holds the shared in-memory Ogg muxing helpers; the unit tests
+# include them by bare name, and CTest adds the root only for its own targets.
+EXTRA_INCLUDE_DIRS = ["src", "include", "tests/support"]
 
 # Extra compiler args appended to every invocation, e.g. ["-xc++", "-std=gnu++14"]
 # to force C++ when the compile db mixes C and C++ commands and flag
 # interpolation for a header could pick a C entry. Empty for pure-C++ repos.
-EXTRA_CLANG_ARGS = []
+# tests/support/ogg_mux.h has no compile-db entry of its own and interpolates
+# to a C entry, which loses the C++ standard library search paths, so C++ is
+# forced here.
+EXTRA_CLANG_ARGS = ["-xc++"]
 
 SOURCE_EXTS = {".cpp", ".cc", ".c"}
 HEADER_EXTS = {".h", ".hpp"}
