@@ -241,7 +241,7 @@ static void log_decode_result(const char* prefix, DecodeResult* result) {
 
 // FreeRTOS task function for concurrent decoding
 static void decode_task(void* params) {
-    TaskParams* task_params = (TaskParams*)params;
+    TaskParams* task_params = static_cast<TaskParams*>(params);
     const AudioConfig* config = task_params->audio_config;
 
     ESP_LOGI(TAG, "Task %d starting %s decode...", task_params->task_id, config->name);

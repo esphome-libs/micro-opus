@@ -59,8 +59,13 @@ std::vector<uint8_t> build_ogg_stream() {
     }
     // Force large (>255 byte) constant-bitrate packets so each Ogg page needs a multi-segment
     // lacing table, exercising the demuxer's segment reassembly across the tiny input chunks.
+    // OPUS_SET_* expand to libopus control macros that cast C-style internally (opus_defines.h);
+    // silence -Wold-style-cast for these vendored-macro calls.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
     opus_encoder_ctl(enc, OPUS_SET_BITRATE(192000));
     opus_encoder_ctl(enc, OPUS_SET_VBR(0));
+#pragma GCC diagnostic pop
 
     std::vector<uint8_t> stream;
     auto append = [&stream](const std::vector<uint8_t>& page) {
@@ -93,7 +98,8 @@ std::vector<uint8_t> build_ogg_stream() {
 
         const uint64_t granule = static_cast<uint64_t>(p + 1) * FRAME_SAMPLES;
         const uint8_t flags = (p == NUM_PACKETS - 1) ? micro_opus_test::OGG_FLAG_EOS : 0x00;
-        append(micro_opus_test::make_ogg_page(flags, granule, SERIAL, 2 + p, packet));
+        append(micro_opus_test::make_ogg_page(flags, granule, SERIAL, static_cast<uint32_t>(2 + p),
+                                              packet));
     }
     opus_encoder_destroy(enc);
     return stream;

@@ -65,6 +65,70 @@ jobs:
           CLANG_TIDY: clang-tidy-18
         run: ./script/clang-tidy.sh
 
+  include-check:
+    name: Include check
+    if: github.event.action != 'labeled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - name: Initialize library submodules
+        run: git submodule update --init --depth 1 lib/opus lib/micro-ogg-demuxer
+
+      - name: Install clang-include-cleaner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tools-18
+
+      - name: Run include check
+        env:
+          CLANG_INCLUDE_CLEANER: clang-include-cleaner-18
+        run: ./script/check-includes.sh
+
+  cppcheck:
+    name: Cppcheck
+    if: github.event.action != 'labeled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Pin cppcheck and build it from source: ubuntu-latest's apt package lags
+      # by several minor versions and produces different findings than the
+      # version developers run locally (Homebrew). Bump deliberately, in step
+      # with local installs. The build is cached, so only the first run per
+      # version pays the compile.
+      CPPCHECK_VERSION: "2.21.0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - name: Initialize library submodules
+        run: git submodule update --init --depth 1 lib/opus lib/micro-ogg-demuxer
+
+      - name: Cache pinned cppcheck
+        id: cache-cppcheck
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/cppcheck-install
+          key: cppcheck-${{ env.CPPCHECK_VERSION }}-${{ runner.os }}
+
+      - name: Build pinned cppcheck
+        if: steps.cache-cppcheck.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$CPPCHECK_VERSION" https://github.com/danmar/cppcheck /tmp/cppcheck
+          cmake -S /tmp/cppcheck -B /tmp/cppcheck/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$HOME/cppcheck-install"
+          cmake --build /tmp/cppcheck/build -j"$(nproc)"
+          cmake --install /tmp/cppcheck/build
+
+      - name: Add pinned cppcheck to PATH
+        run: echo "$HOME/cppcheck-install/bin" >> "$GITHUB_PATH"
+
+      - name: Run cppcheck
+        run: ./script/cppcheck.sh
+
   build:
     name: Build
     if: github.event.action != 'labeled'
@@ -133,7 +197,7 @@ jobs:
 
       - name: Configure CMake with sanitizers
         run: >
-          cmake -B build -DENABLE_SANITIZERS=ON
+          cmake -B build -DENABLE_SANITIZERS=ON -DENABLE_WERROR=ON
           -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           -DOPUS_ALLOCATION_MODE=${{ matrix.alloc_mode }} tests
 
@@ -339,7 +403,7 @@ jobs:
           path: |
             ~/.platformio
             examples/${{ matrix.example }}/.pio
-          key: pio-${{ matrix.example }}-${{ hashFiles('examples/${{ matrix.example }}/platformio.ini') }}
+          key: pio-${{ matrix.example }}-${{ hashFiles(format('examples/{0}/platformio.ini', matrix.example)) }}
           restore-keys: |
             pio-${{ matrix.example }}-
 
@@ -358,6 +422,8 @@ jobs:
     needs:
       - pre-commit
       - lint
+      - include-check
+      - cppcheck
       - build
       - test
       - conformance

@@ -28,6 +28,37 @@ function(opus_set_common_definitions TARGET)
 endfunction()
 
 # ==============================================================================
+# opus_wrapper_warning_flags
+# ==============================================================================
+# Returns (in OUT_VAR, in the caller's scope) the strict warning set applied to
+# our own first-party C++ wrapper sources (src/*.cpp) on BOTH the host and the
+# ESP-IDF component build. The bundled upstream Opus C is never put through these
+# (it is not clean under them by design), so callers scope the result to the
+# wrapper sources via set_source_files_properties().
+#
+# -Werror is deliberately NOT included here: each caller (host and ESP) appends it
+# under the ENABLE_WERROR guard, which defaults off. These sources are
+# source-distributed and consumers compile them with arbitrary future toolchains,
+# so with the guard off they get warnings only; CI's pinned host and ESP builds
+# pass -DENABLE_WERROR=ON, which is where the warnings actually become errors.
+#
+# Arguments:
+#   OUT_VAR - Name of the variable to populate in the caller's scope
+# ==============================================================================
+function(opus_wrapper_warning_flags OUT_VAR)
+    set(${OUT_VAR}
+        -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion -Wdouble-promotion
+        -Wformat=2 -Wimplicit-fallthrough
+        # Any function not declared in a header must be static, so -Wunused-function can see it go
+        # dead. Clang and GCC spell the C++ variant differently.
+        $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wmissing-prototypes>
+        $<$<CXX_COMPILER_ID:GNU>:-Wmissing-declarations>
+        # Require static_cast/reinterpret_cast over C-style casts (the wrapper sources are all C++).
+        $<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast>
+        PARENT_SCOPE)
+endfunction()
+
+# ==============================================================================
 # opus_set_optimization_flags
 # ==============================================================================
 # Sets common optimization compiler flags.

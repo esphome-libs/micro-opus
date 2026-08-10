@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -93,6 +94,8 @@ int main() {
     check(fmt.is_valid(), "format valid before first decode");
     check(fmt.sample_rate() == SAMPLE_RATE, "format sample_rate");
     check(fmt.num_channels() == CHANNELS, "format num_channels");
+    // Intentional assertion; cppcheck constant-folds the inline accessor.
+    // cppcheck-suppress knownConditionTrueFalse
     check(fmt.bytes_per_sample() == 2, "format bytes_per_sample");
     // max_output_bytes is the 120 ms upper bound: 48000/1000*120 = 5760 samples/ch.
     check(fmt.max_output_bytes() == 5760U * CHANNELS * 2U, "format max_output_bytes");

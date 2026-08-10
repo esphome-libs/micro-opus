@@ -93,15 +93,15 @@ inline uint32_t crc32(const uint8_t* buffer, size_t size) {
 }  // namespace detail
 
 inline void put_le16(std::vector<uint8_t>& out, uint16_t val) {
-    out.push_back(val & 0xFF);
-    out.push_back((val >> 8) & 0xFF);
+    out.push_back(static_cast<uint8_t>(val & 0xFF));
+    out.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
 }
 
 inline void put_le32(std::vector<uint8_t>& out, uint32_t val) {
-    out.push_back(val & 0xFF);
-    out.push_back((val >> 8) & 0xFF);
-    out.push_back((val >> 16) & 0xFF);
-    out.push_back((val >> 24) & 0xFF);
+    out.push_back(static_cast<uint8_t>(val & 0xFF));
+    out.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
+    out.push_back(static_cast<uint8_t>((val >> 16) & 0xFF));
+    out.push_back(static_cast<uint8_t>((val >> 24) & 0xFF));
 }
 
 // Build one Ogg page wrapping a single (complete) packet, with a valid CRC. complete_packet adds
@@ -116,7 +116,7 @@ inline std::vector<uint8_t> make_ogg_page(uint8_t header_type, uint64_t granule_
     page.push_back(header_type);  // Header type flags
 
     for (int i = 0; i < 8; ++i) {  // Granule position (little-endian)
-        page.push_back((granule_pos >> (i * 8)) & 0xFF);
+        page.push_back(static_cast<uint8_t>((granule_pos >> (i * 8)) & 0xFF));
     }
     put_le32(page, serial_number);
     put_le32(page, page_sequence);
@@ -150,10 +150,10 @@ inline std::vector<uint8_t> make_ogg_page(uint8_t header_type, uint64_t granule_
     page.insert(page.end(), packet_data.begin(), packet_data.end());
 
     const uint32_t crc = detail::crc32(page.data(), page.size());
-    page[checksum_pos + 0] = crc & 0xFF;
-    page[checksum_pos + 1] = (crc >> 8) & 0xFF;
-    page[checksum_pos + 2] = (crc >> 16) & 0xFF;
-    page[checksum_pos + 3] = (crc >> 24) & 0xFF;
+    page[checksum_pos + 0] = static_cast<uint8_t>(crc & 0xFF);
+    page[checksum_pos + 1] = static_cast<uint8_t>((crc >> 8) & 0xFF);
+    page[checksum_pos + 2] = static_cast<uint8_t>((crc >> 16) & 0xFF);
+    page[checksum_pos + 3] = static_cast<uint8_t>((crc >> 24) & 0xFF);
     return page;
 }
 

@@ -190,7 +190,7 @@ static void log_stats(const char* prefix, const char* name, const Stats* s) {
 // Run a single encoder configuration test
 // Decodes the audio packet by packet, encoding each frame and timing only the encode step
 static EncodeResult run_encode_test(const AudioConfig* audio, const EncoderConfig* config) {
-    EncodeResult result;
+    EncodeResult result = {};  // zero-init so the early error-return path returns defined fields
     init_stats(&result.frame_stats);
     result.success = true;
     result.total_bytes_encoded = 0;

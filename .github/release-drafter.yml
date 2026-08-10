@@ -11,11 +11,11 @@ categories:
 version-resolver:
   major:
     labels:
-      - "major"
+      - "force-major"
       - "breaking-change"
   minor:
     labels:
-      - "minor"
+      - "force-minor"
       - "new-feature"
   patch:
     labels:

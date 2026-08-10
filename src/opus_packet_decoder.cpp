@@ -56,7 +56,12 @@ void OpusPacketDecoder::set_output_gain(int16_t output_gain) {
     this->output_gain_ = output_gain;
     // Apply now if the decoder already exists; otherwise ensure_decoder() applies it on creation.
     if (this->opus_decoder_ != nullptr) {
+        // OPUS_SET_GAIN casts C-style inside the vendored libopus macro (opus_defines.h), which we
+        // can't change; silence -Wold-style-cast for just this call.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
         opus_decoder_ctl(this->opus_decoder_, OPUS_SET_GAIN(static_cast<opus_int32>(output_gain)));
+#pragma GCC diagnostic pop
     }
 }
 
@@ -162,8 +167,13 @@ OpusPacketResult OpusPacketDecoder::ensure_decoder() {
     // Apply any gain set before allocation (e.g. a forwarded OpusHead output_gain).
     // Unity gain (0) is the libopus default, so skip the ctl.
     if (this->output_gain_ != 0) {
+        // OPUS_SET_GAIN casts C-style inside the vendored libopus macro (opus_defines.h), which we
+        // can't change; silence -Wold-style-cast for just this call.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
         opus_decoder_ctl(this->opus_decoder_,
                          OPUS_SET_GAIN(static_cast<opus_int32>(this->output_gain_)));
+#pragma GCC diagnostic pop
     }
     return OPUS_PACKET_DECODER_SUCCESS;
 }

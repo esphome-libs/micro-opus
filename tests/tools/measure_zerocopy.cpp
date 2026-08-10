@@ -56,8 +56,8 @@ int main(int argc, char* argv[]) {
 
         while (input) {
             input.read(reinterpret_cast<char*>(input_buffer.data() + offset),
-                       input_buffer.size() - offset);
-            size_t bytes_read = input.gcount();
+                       static_cast<std::streamsize>(input_buffer.size() - offset));
+            size_t bytes_read = static_cast<size_t>(input.gcount());
             offset += bytes_read;
 
             while (offset > 0) {
@@ -84,6 +84,8 @@ int main(int argc, char* argv[]) {
                 }
 
                 // Move remaining data to front
+                // consumed is size_t and the ==0 case broke above; the guard documents intent.
+                // cppcheck-suppress knownConditionTrueFalse
                 if (consumed > 0) {
                     if (consumed < offset) {
                         memmove(input_buffer.data(), input_buffer.data() + consumed,
@@ -112,9 +114,15 @@ int main(int argc, char* argv[]) {
         std::cout << "Total audio packets:  " << total_audio_packets << "\n";
         std::cout << "Total demuxed packets: " << total_packets << " (includes headers)\n\n";
         std::cout << "Zero-copy packets:    " << zero_copy << " ("
-                  << (total_packets > 0 ? (100.0 * zero_copy / total_packets) : 0) << "%)\n";
+                  << (total_packets > 0 ? (100.0 * static_cast<double>(zero_copy) /
+                                           static_cast<double>(total_packets))
+                                        : 0)
+                  << "%)\n";
         std::cout << "Buffered packets:     " << buffered << " ("
-                  << (total_packets > 0 ? (100.0 * buffered / total_packets) : 0) << "%)\n";
+                  << (total_packets > 0 ? (100.0 * static_cast<double>(buffered) /
+                                           static_cast<double>(total_packets))
+                                        : 0)
+                  << "%)\n";
 
         std::cout << "\nBuffer Statistics:\n";
         std::cout << "  Current capacity:   " << current_buffer_size << " bytes\n";
