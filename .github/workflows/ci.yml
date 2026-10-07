@@ -134,9 +134,12 @@ jobs:
     if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # libopus is ~260 .c files rebuilt from scratch in every host job; ccache reuses objects across runs.
+    # libopus is ~260 .c files rebuilt from scratch in every host job; ccache reuses objects across
+    # runs. Every ccache job restores its newest cache, but only pushes to main save one, so PR runs
+    # reuse main's objects without filling the repository's cache quota.
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 300M
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -148,8 +151,8 @@ jobs:
       - name: Install ccache
         run: sudo apt-get update && sudo apt-get install -y ccache
 
-      - name: Cache ccache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Restore ccache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ github.workspace }}/.ccache
           key: ccache-build-${{ github.sha }}
@@ -162,7 +165,17 @@ jobs:
           host_examples/opus_to_wav
 
       - name: Build
-        run: cmake --build build
+        run: |
+          ccache --zero-stats
+          cmake --build build
+          ccache --show-stats
+
+      - name: Save ccache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-build-${{ github.sha }}
 
   test:
     name: Unit tests (${{ matrix.alloc_mode }})
@@ -171,6 +184,7 @@ jobs:
     timeout-minutes: 20
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 300M
     strategy:
       fail-fast: false
       matrix:
@@ -188,8 +202,8 @@ jobs:
       - name: Install ccache
         run: sudo apt-get update && sudo apt-get install -y ccache
 
-      - name: Cache ccache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Restore ccache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ github.workspace }}/.ccache
           key: ccache-test-${{ matrix.alloc_mode }}-${{ github.sha }}
@@ -202,7 +216,17 @@ jobs:
           -DOPUS_ALLOCATION_MODE=${{ matrix.alloc_mode }} tests
 
       - name: Build
-        run: cmake --build build
+        run: |
+          ccache --zero-stats
+          cmake --build build
+          ccache --show-stats
+
+      - name: Save ccache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-test-${{ matrix.alloc_mode }}-${{ github.sha }}
 
       - name: Run unit tests
         run: ctest --test-dir build -L unit --output-on-failure
@@ -214,6 +238,7 @@ jobs:
     timeout-minutes: 30
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 300M
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -225,8 +250,8 @@ jobs:
       - name: Install ccache
         run: sudo apt-get update && sudo apt-get install -y ccache
 
-      - name: Cache ccache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Restore ccache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ github.workspace }}/.ccache
           key: ccache-conformance-${{ github.sha }}
@@ -252,7 +277,17 @@ jobs:
           tests
 
       - name: Build
-        run: cmake --build build
+        run: |
+          ccache --zero-stats
+          cmake --build build
+          ccache --show-stats
+
+      - name: Save ccache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-conformance-${{ github.sha }}
 
       # Decode the official vectors with our decoder and validate each against its reference
       # decode with opus_compare. Run without sanitizers: opus_compare's FFT analysis over the long
